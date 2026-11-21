@@ -1,0 +1,28 @@
+# RHS ADMIN - web server rules
+
+Options -Indexes
+
+# The app/ folder (settings with the database password, helper code) and database/ are never served.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Always use https.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  RewriteRule ^(app|database)(/|$) - [F,L]
+  RewriteRule ^(DEPLOY\.md|README\.md)$ - [F,L]
+</IfModule>
+
+# Hidden files (like this one) are never served.
+<FilesMatch "^\.">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+
+# Search engines must not list the admin site.
+<IfModule mod_headers.c>
+  Header always set X-Robots-Tag "noindex, nofollow"
+</IfModule>

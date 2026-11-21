@@ -1,0 +1,97 @@
+/* ==========================================================================
+   Base — reset, typography, accessibility, utilities.
+   ========================================================================== */
+*,*::before,*::after{ box-sizing: border-box; }
+
+html,body{
+  overscroll-behavior-y: contain; /* stops the browser's pull-to-refresh reload */
+}
+html{ -webkit-text-size-adjust: 100%; }
+
+body{
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+body.modal-open{ overflow: hidden; }
+
+h1,h2,h3,h4{
+  font-family: var(--font-display);
+  color: var(--text);
+  line-height: 1.25;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -.005em;
+}
+p{ margin: 0 0 var(--sp-3); }
+p:last-child{ margin-bottom: 0; }
+a{ color: var(--primary); font-weight: 700; text-underline-offset: 3px; }
+a:hover{ color: var(--primary-hover); }
+strong{ font-weight: 700; color: inherit; }
+img{ max-width: 100%; }
+hr{ border: 0; border-top: 1px solid var(--border); margin: var(--sp-4) 0; }
+details > summary{ cursor: pointer; }
+::selection{ background: var(--primary-soft); color: var(--text); }
+
+/* Keyboard focus — visible but only when navigating by keyboard */
+:focus{ outline: none; }
+:focus-visible{ outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+
+.sr-only{
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* SVG icon base (see js/ui/icons.js) */
+.ic{
+  width: 1.15em; height: 1.15em; flex-shrink: 0;
+  stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: -0.2em;
+}
+
+/* ---------- Utilities ---------- */
+.muted{ color: var(--text-2); }
+.subtle{ color: var(--text-3); }
+.small{ font-size: var(--fs-sm); }
+.xsmall{ font-size: var(--fs-xs); }
+.bold{ font-weight: 700; }
+.nowrap{ white-space: nowrap; }
+.text-center{ text-align: center; }
+.text-right{ text-align: right; }
+.text-success{ color: var(--success); }
+.text-danger{ color: var(--danger); }
+.text-warning{ color: var(--warning); }
+.text-primary{ color: var(--primary-ink); }
+.mono{ font-variant-numeric: tabular-nums; }
+.mt-0{ margin-top: 0 !important; }
+.mt-2{ margin-top: var(--sp-2); }
+.mt-3{ margin-top: var(--sp-3); }
+.mt-4{ margin-top: var(--sp-4); }
+.mt-5{ margin-top: var(--sp-5); }
+.mb-0{ margin-bottom: 0 !important; }
+.mb-2{ margin-bottom: var(--sp-2); }
+.mb-3{ margin-bottom: var(--sp-3); }
+.mb-4{ margin-bottom: var(--sp-4); }
+.w-full{ width: 100%; }
+.hidden{ display: none !important; }
+.row{ display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.row-between{ display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.stack{ display: flex; flex-direction: column; gap: var(--sp-3); }
+.stack-sm{ display: flex; flex-direction: column; gap: var(--sp-2); }
+.span-all{ grid-column: 1 / -1; }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* The hidden attribute always wins over component display rules */
+[hidden]{ display: none !important; }

@@ -1,0 +1,33 @@
+# REALITY HEALTH BRIDGE API - web server rules
+
+# No folder listings.
+Options -Indexes
+
+# Block the settings/helper files from the web (they hold the database password and payment keys).
+<FilesMatch "^(config|db|lib|nylonpay|payment-config)\.php$|^\.">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Always use https.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Some cPanel servers drop the "Authorization" header before PHP sees it. This passes it on.
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# Never cache API answers.
+<IfModule mod_headers.c>
+  Header set Cache-Control "no-store"
+</IfModule>

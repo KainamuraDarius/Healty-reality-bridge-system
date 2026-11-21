@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="author" content="REALITY HEALTH SYSTEM">
+<meta name="description" content="Stock, sales and price book for pharmacies, drug shops and clinics, by REALITY HEALTH SYSTEM.">
+<meta name="theme-color" content="#0B2A6B">
+<meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Reality Health Bridge — Stock Book</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="assets/img/logo.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<!-- Theme must apply before first paint to avoid a flash -->
+<script src="js/theme-boot.js"></script>
+<script src="config.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/pages.css">
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/print.css">
+
+<!-- Third-party -->
+
+<!-- App (classic scripts, run in order after the page is parsed) -->
+<script src="js/core/brand.js" defer></script>
+<script src="js/vendor/dexie.min.js" defer></script>
+<script src="js/core/crypto.js" defer></script>
+<script src="js/core/utils.js" defer></script>
+<script src="js/core/localdb.js" defer></script>
+<script src="js/core/storage.js" defer></script>
+<script src="js/core/state.js" defer></script>
+<script src="js/core/ipno.js" defer></script>
+
+<script src="js/ui/icons.js" defer></script>
+<script src="js/ui/blocks.js" defer></script>
+<script src="js/ui/chrome.js" defer></script>
+<script src="js/ui/toast.js" defer></script>
+<script src="js/ui/modal.js" defer></script>
+<script src="js/ui/password-field.js" defer></script>
+<script src="js/ui/combobox.js" defer></script>
+
+<script src="js/domain/accounts.js" defer></script>
+<script src="js/domain/stock.js" defer></script>
+<script src="js/domain/finance.js" defer></script>
+<script src="js/domain/catalog.js" defer></script>
+<script src="js/domain/facility.js" defer></script>
+
+<script src="js/services/google-drive.js" defer></script>
+<script src="js/services/backup.js" defer></script>
+<script src="js/services/sync.js" defer></script>
+<script src="js/services/public-info.js" defer></script>
+<script src="js/services/registration.js" defer></script>
+<script src="js/services/license.js" defer></script>
+<script src="js/services/payments.js" defer></script>
+
+<script src="js/components/packages-pay.js" defer></script>
+<script src="js/components/facility-docs.js" defer></script>
+<script src="js/components/receipts.js" defer></script>
+<script src="js/components/sales-search.js" defer></script>
+
+<script src="js/pages/landing.js" defer></script>
+<script src="js/pages/auth.js" defer></script>
+<script src="js/pages/facility-setup.js" defer></script>
+<script src="js/pages/lock-screens.js" defer></script>
+<script src="js/pages/dashboard.js" defer></script>
+<script src="js/pages/stock-in.js" defer></script>
+<script src="js/pages/sell.js" defer></script>
+<script src="js/pages/inventory.js" defer></script>
+<script src="js/pages/sales-log.js" defer></script>
+<script src="js/pages/expiry.js" defer></script>
+<script src="js/pages/reports.js" defer></script>
+<script src="js/pages/team.js" defer></script>
+<script src="js/pages/finance.js" defer></script>
+<script src="js/pages/system.js" defer></script>
+<script src="js/pages/settings.js" defer></script>
+
+<script src="js/app/shell.js" defer></script>
+<script src="js/main.js" defer></script>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="loading-screen" role="status">Opening the stock book…</div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<div id="receiptPrintArea"></div>
+<div id="reportPrintArea"></div>
+
+<div class="toast" id="toast" aria-live="polite"></div>
+</body>
+</html>

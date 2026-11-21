@@ -1,0 +1,21 @@
+# --- Secrets: NEVER commit (live database + Nylon Pay keys) ---
+RealityHealthBridge-WebHost/api/config.php
+RealityHealthBridge-WebHost/api/payment-config.php
+RHS-Admin/app/config.php
+
+# --- Not code: videos, screenshots, upload zips, old backups ---
+*.zip
+*.mp4
+*.png
+!RealityHealthBridge-WebHost/icons/*.png
+!RealityHealthBridge-WebHost/assets/**/*.png
+*.jpeg
+*.jpg
+!RealityHealthBridge-WebHost/assets/**/*.jpg
+new/
+WhatsApp*/
+
+# --- Editor / OS ---
+.vscode/
+.DS_Store
+*.log
