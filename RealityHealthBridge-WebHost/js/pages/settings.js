@@ -11,13 +11,15 @@ function settingsTabs(){
     can('backup') && ['go-backup', 'Data backup', 'database', 'In System → Backup'],
     ['account', 'My account', 'user', 'Your details and password'],
     ['appearance', 'Appearance', 'sun', 'Light or dark screen'],
+    ['feedback', 'Feedback & rating', 'star', 'Rate the app, tell us what to improve'],
+    ['privacy', 'Privacy', 'shield', 'Privacy policy, terms, deleting your data'],
   ].filter(Boolean);
 }
 
 function viewSettings(){
   const tabs = settingsTabs();
   if(!tabs.find(t=>t[0]===settingsTab) || settingsTab.startsWith('go-')) settingsTab = tabs[0][0];
-  const body = { pharmacy: settingsPharmacyHtml, docs: settingsDocsHtml, account: settingsAccountHtml, appearance: settingsAppearanceHtml }[settingsTab]();
+  const body = { pharmacy: settingsPharmacyHtml, docs: settingsDocsHtml, account: settingsAccountHtml, appearance: settingsAppearanceHtml, feedback: settingsFeedbackHtml, privacy: settingsPrivacyHtml }[settingsTab]();
   return `
   <div class="set-layout">
     <nav class="panel set-nav" aria-label="Settings sections">
@@ -174,6 +176,8 @@ function wireSettings(){
   document.querySelectorAll('[data-set-theme]').forEach(b=> b.onclick = ()=>{ setTheme(b.dataset.setTheme); renderTabContent(); });
 
   if(settingsTab === 'docs') wireSettingsDocs();
+  if(settingsTab === 'feedback') wireSettingsFeedback();
+  if(settingsTab === 'privacy') wireSettingsPrivacy();
   const rec = document.getElementById('showRecoveryBtn');
   if(rec) rec.onclick = ()=>{
     const pw = computeRecoveryPassword(STATE.settings.identity || {});
@@ -232,4 +236,214 @@ function wireSettings(){
       renderTabContent();
     };
   }
+}
+
+// ---------- Feedback & rating (everyone) ----------
+// Goes straight to REALITY HEALTH SYSTEM (api/feedback.php); their super admins read it on the
+// RHS admin site. Needs internet: nothing is stored on the device.
+const FEEDBACK_STARS = ['', 'Very poor', 'Poor', 'Okay', 'Good', 'Excellent'];
+const FEEDBACK_TYPES = [['general', 'General feedback'], ['idea', 'Suggestion / idea'], ['problem', 'Problem / something not working'], ['praise', 'Something I like']];
+const FEEDBACK_MAX = 2000;
+
+function feedbackStarsHtml(n, cls = ''){
+  return `<span class="fb-stars-show ${cls}" role="img" aria-label="${n} out of 5 stars">${[1,2,3,4,5].map(i=>`<span class="${i<=n?'on':''}">${icon('star')}</span>`).join('')}</span>`;
+}
+function settingsFeedbackHtml(){
+  return `
+  <section class="panel">
+    <div class="card-header"><h2>${icon('star')} Feedback &amp; rating</h2><span class="hint">Goes to REALITY HEALTH SYSTEM</span></div>
+    <p class="small subtle">How is Reality Health Bridge working for you? Your rating and comments help us fix problems and decide what to build next. The RHS team reads every message.</p>
+    <form id="feedbackForm" novalidate>
+      <fieldset class="fb-rate">
+        <legend class="label">Your rating</legend>
+        <div class="fb-stars" id="fbStars">
+          ${[1,2,3,4,5].map(n=>`
+          <label class="fb-star" data-fb-star="${n}" title="${FEEDBACK_STARS[n]}">
+            <input type="radio" name="fbRating" value="${n}" class="sr-only">${icon('star')}<span class="sr-only">${n} star${n>1?'s':''} — ${FEEDBACK_STARS[n]}</span>
+          </label>`).join('')}
+          <span class="fb-star-label" id="fbStarLabel" aria-live="polite">Tap a star</span>
+        </div>
+      </fieldset>
+      <div class="form-grid cols-2">
+        <div class="field"><label for="fbType">What is it about?</label>
+          <select id="fbType">${FEEDBACK_TYPES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></div>
+      </div>
+      <div class="field">
+        <label for="fbMessage">Your feedback <span class="subtle" id="fbMsgNote">(optional)</span></label>
+        <textarea id="fbMessage" rows="5" maxlength="${FEEDBACK_MAX}" placeholder="What do you like? What is hard to use, missing or not working?"></textarea>
+        <div class="field-hint"><span id="fbCount">0</span> / ${FEEDBACK_MAX} · sent with your name, your role and the facility name</div>
+      </div>
+      <button class="btn" type="submit" id="fbSend">${icon('message')} Send feedback</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="card-header"><h2>${icon('clock')} Feedback you sent</h2></div>
+    <div id="fbHistory"><p class="small subtle">Loading…</p></div>
+  </section>`;
+}
+
+async function feedbackCall(body){
+  if(!navigator.onLine) throw new ApiError(0, 'offline', 'Sending feedback needs internet. Connect and try again.');
+  const token = await metaGet('apiToken');
+  if(!token) throw new ApiError(0, 'not_connected', 'This device is not connected to the server yet. Open System → Devices & sync first.');
+  return apiPost('feedback.php', Object.assign(body, { act_by:(session && session.uid) || '', act_key:(session && session.ak) || '' }), token);
+}
+
+async function loadFeedbackHistory(){
+  const box = document.getElementById('fbHistory');
+  if(!box) return;
+  try{
+    const res = await feedbackCall({ action:'list' });
+    if(!document.body.contains(box)) return;
+    const types = Object.fromEntries(FEEDBACK_TYPES);
+    box.innerHTML = !res.feedback.length
+      ? `<p class="small subtle mb-0">You have not sent any feedback yet.</p>`
+      : `<ul class="fb-list">${res.feedback.map(f=>`
+          <li>
+            <div class="fb-list-head">${feedbackStarsHtml(f.rating, 'small')}<span class="fb-type">${esc(types[f.category] || 'General feedback')}</span>
+              <span class="xsmall subtle">${f.created_at ? `${fmtDate(f.created_at)}, ${fmtTime(f.created_at)}` : ''}</span>
+              ${f.seen ? `<span class="xsmall fb-seen">${icon('check')} Read by RHS</span>` : ''}</div>
+            ${f.message ? `<p class="small mb-0">${esc(f.message).replace(/\n/g, '<br>')}</p>` : ''}
+          </li>`).join('')}</ul>`;
+  }catch(e){
+    if(document.body.contains(box)) box.innerHTML = `<p class="small subtle mb-0">${esc(e.message || 'Could not load your feedback.')}</p>`;
+  }
+}
+
+function wireSettingsFeedback(){
+  const form = document.getElementById('feedbackForm');
+  if(!form) return;
+  let rating = 0;
+  const stars = [...form.querySelectorAll('[data-fb-star]')];
+  const paint = (n)=>{
+    stars.forEach(s=> s.classList.toggle('on', +s.dataset.fbStar <= n));
+    document.getElementById('fbStarLabel').textContent = n ? `${FEEDBACK_STARS[n]} (${n}/5)` : 'Tap a star';
+  };
+  stars.forEach(s=>{
+    s.onmouseenter = ()=> paint(+s.dataset.fbStar);
+    s.querySelector('input').onchange = (e)=>{ rating = +e.target.value; paint(rating); };
+  });
+  document.getElementById('fbStars').onmouseleave = ()=> paint(rating);
+
+  const msg = document.getElementById('fbMessage'), type = document.getElementById('fbType');
+  msg.oninput = ()=>{ document.getElementById('fbCount').textContent = msg.value.length; };
+  type.onchange = ()=>{ document.getElementById('fbMsgNote').textContent = type.value === 'problem' ? '(please describe it)' : '(optional)'; };
+
+  form.onsubmit = async (e)=>{
+    e.preventDefault();
+    const message = msg.value.trim();
+    if(!rating){ toast('Please choose from 1 to 5 stars.', 'error'); return; }
+    if(type.value === 'problem' && !message){ toast('Please describe the problem so we can fix it.', 'error'); msg.focus(); return; }
+    const btn = document.getElementById('fbSend');
+    btn.disabled = true;
+    try{
+      await feedbackCall({ action:'send', rating, category:type.value, message, app_version:RHB_APP_VERSION });
+      toast('Thank you! Your feedback was sent to REALITY HEALTH SYSTEM.', 'success');
+      form.reset(); rating = 0; paint(0); msg.oninput(); type.onchange();
+      loadFeedbackHistory();
+    }catch(err){
+      toast(err.message || 'Could not send your feedback. Please try again.', 'error');
+    }finally{ btn.disabled = false; }
+  };
+  loadFeedbackHistory();
+}
+
+// ---------- Privacy (js/services/privacy.js) ----------
+function settingsPrivacyHtml(){
+  const a = termsAgreement(), sup = isSuperAdminNow();
+  const when = a && a.acceptedAt ? `${fmtDate(a.acceptedAt)}` : '';
+  return `
+  <section class="panel">
+    <div class="card-header"><h2>${icon('shield')} Privacy Policy &amp; Terms of Use</h2></div>
+    <div class="privacy-docs">
+      <a class="btn secondary" href="${PRIVACY_URL}" target="_blank" rel="noopener">${icon('shield')} Privacy Policy</a>
+      <a class="btn secondary" href="${TERMS_URL}" target="_blank" rel="noopener">${icon('fileText')} Terms of Use</a>
+    </div>
+    ${a
+      ? alertBox(`<span class="alert-title">Agreed</span>${a.acceptedBy ? esc(a.acceptedBy) + ' agreed' : 'Agreed'} for the facility${when ? ' on ' + esc(when) : ''} (version ${esc(a.version)}).`, 'success', 'checkCircle')
+      : sup
+        ? alertBox(`<span class="alert-title">Not agreed yet</span>Please read both, then agree for your facility. <a data-terms-open role="button" tabindex="0">Read and agree →</a>`, 'warning')
+        : alertBox(`<span class="alert-title">Not agreed yet</span>Your facility's super admin needs to read and agree to them.`, 'info')}
+  </section>
+
+  <section class="panel">
+    <div class="card-header"><h2>${icon('lock')} Your facility's data, in short</h2></div>
+    <ul class="privacy-facts small">
+      <li><strong>What is kept:</strong> your facility profile, staff logins, stock, sales and payments, and patient details your staff type in (name, phone, diagnosis — all optional).</li>
+      <li><strong>Who can see it:</strong> only your facility's logins. REALITY HEALTH SYSTEM staff look at it only to support you, fix a problem or when the law requires. We never sell it.</li>
+      <li><strong>Where:</strong> on your devices and on our server in Uganda, over a secure (https) connection. Passwords are never stored in readable form.</li>
+      <li><strong>How long:</strong> while your facility uses the app, and 12 months after your subscription ends, so you can come back. Then it is deleted.</li>
+      <li><strong>Your copy:</strong> download a full backup any time from System → Backup.</li>
+    </ul>
+  </section>
+
+  <section class="panel" id="privacyDelete">
+    <div class="card-header"><h2>${icon('trash')} Delete your facility's data</h2><span class="hint">Super admin only</span></div>
+    ${sup ? `<div id="privacyDeleteBody"><p class="small subtle">Loading…</p></div>`
+          : `<p class="small subtle mb-0">Only your facility's super admin can ask REALITY HEALTH SYSTEM to delete the facility's data.</p>`}
+  </section>`;
+}
+
+function privacyDeleteFormHtml(){
+  const idn = STATE.settings.identity || {}, me = currentAccount() || {};
+  return `
+    <p class="small">Ask REALITY HEALTH SYSTEM to permanently delete your facility's records from our server: the profile, logins, stock, sales, patient details and certificates. We will call or email you to confirm it is really you, then delete within 30 days. Records of payments to RHS are kept as the law requires.</p>
+    ${alertBox('<span class="alert-title">This cannot be undone</span>Download a backup first (System → Backup) if you want to keep a copy. After deletion, the app stops working for every login of this facility.', 'danger')}
+    <form id="privacyDeleteForm" novalidate>
+      <div class="form-grid cols-2">
+        <div class="field span-all"><label for="pdContact">Phone or email we should use to confirm</label>
+          <input type="text" id="pdContact" required value="${esc(me.contact || idn.contact || '')}"></div>
+        <div class="field span-all"><label for="pdReason">Why are you leaving? <span class="label-opt">(optional)</span></label>
+          <textarea id="pdReason" rows="3" maxlength="2000"></textarea></div>
+      </div>
+      <label class="perm-tick agree-tick"><input type="checkbox" id="pdSure"><span>I understand all of <strong>${esc(idn.name || 'this facility')}</strong>'s records will be deleted from the server for good.</span></label>
+      <button class="btn danger mt" type="submit" id="pdSend" disabled>${icon('trash')} Ask RHS to delete our data</button>
+    </form>`;
+}
+
+async function loadPrivacyDelete(){
+  const box = document.getElementById('privacyDeleteBody');
+  if(!box) return;
+  let res;
+  try{ res = await privacyCall({ action:'status' }); }
+  catch(e){
+    if(document.body.contains(box)) box.innerHTML = `<p class="small subtle mb-0">${esc(e.message || 'Could not load.')} You can also call or WhatsApp ${esc(RHS_PHONE)} or email ${esc(RHS_EMAIL)}.</p>`;
+    return;
+  }
+  if(!document.body.contains(box)) return;
+  if(res.terms){ // the server's record is the real one
+    STATE.settings.terms = { version:res.terms.version, acceptedAt:res.terms.accepted_at, acceptedBy:res.terms.accepted_by };
+  }
+  const r = res.request;
+  if(r){
+    box.innerHTML = alertBox(`<span class="alert-title">Deletion requested</span>${esc(r.user_name || 'You')} asked on ${esc(fmtDate(r.created_at))}. REALITY HEALTH SYSTEM will contact you on <strong>${esc(r.contact)}</strong> to confirm, then delete the data within 30 days.`, 'warning', 'clock')
+      + `<button class="btn secondary" type="button" id="pdCancel">Cancel the request</button>`;
+    document.getElementById('pdCancel').onclick = ()=> confirmDialog('Cancel the request?', 'Your facility\'s data will be kept and you can keep using the app.', async ()=>{
+      try{ await privacyCall({ action:'cancel_delete' }); toast('Request cancelled. Your data is kept.', 'success'); }
+      catch(e){ toast(e.message || 'Could not cancel. Please try again.', 'error'); }
+      loadPrivacyDelete();
+    }, 'Cancel the request', false);
+    return;
+  }
+  box.innerHTML = privacyDeleteFormHtml();
+  const sure = document.getElementById('pdSure'), send = document.getElementById('pdSend');
+  sure.onchange = ()=>{ send.disabled = !sure.checked; };
+  document.getElementById('privacyDeleteForm').onsubmit = (e)=>{
+    e.preventDefault();
+    const contact = document.getElementById('pdContact').value.trim(), reason = document.getElementById('pdReason').value.trim();
+    if(!contact){ toast('Enter a phone number or email we can use to confirm.', 'error'); return; }
+    confirmDialog('Ask RHS to delete all your data?', 'REALITY HEALTH SYSTEM will contact you to confirm before anything is deleted.', async ()=>{
+      send.disabled = true;
+      try{
+        await privacyCall({ action:'request_delete', contact, reason });
+        toast('Request sent. RHS will contact you to confirm.', 'success');
+      }catch(err){ toast(err.message || 'Could not send. Please try again.', 'error'); }
+      loadPrivacyDelete();
+    }, 'Send request');
+  };
+}
+
+function wireSettingsPrivacy(){
+  loadPrivacyDelete();
 }

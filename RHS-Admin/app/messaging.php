@@ -29,12 +29,27 @@ function site_url(): string {
     $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
     return ($https || !empty(config()['require_https']) ? 'https' : 'http') . '://' . $host . $dir;
 }
+// Gmail, Yahoo, Outlook… reject mail that claims to be from them but comes from our server (DMARC).
+const FREE_MAIL_DOMAINS = ['gmail.com', 'googlemail.com', 'yahoo.com', 'ymail.com', 'outlook.com', 'hotmail.com',
+    'live.com', 'msn.com', 'icloud.com', 'me.com', 'aol.com', 'proton.me', 'protonmail.com', 'gmx.com', 'zoho.com'];
+function is_free_mail(string $email): bool {
+    return in_array(strtolower(substr(strrchr($email, '@') ?: '', 1)), FREE_MAIL_DOMAINS, true);
+}
+// bhr-admin.truehome.com.ug -> truehome.com.ug
+function mail_base_domain(): string {
+    $labels = explode('.', strtolower(preg_replace('/[^A-Za-z0-9.-]/', '', preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? ''))));
+    if (count($labels) >= 4 || (count($labels) === 3 && strlen(end($labels)) > 2)) array_shift($labels);
+    return implode('.', $labels);
+}
 function send_mail(array $to, string $subject, string $body): bool {
-    $from = setting('mail_from');
-    $headers = "Content-Type: text/plain; charset=UTF-8\r\n";
-    if (filter_var($from, FILTER_VALIDATE_EMAIL)) $headers .= "From: Reality Health Bridge <$from>\r\n";
+    $set = trim(setting('mail_from'));
+    $ok = filter_var($set, FILTER_VALIDATE_EMAIL) && !is_free_mail($set);
+    $from = $ok ? $set : (mail_base_domain() ? 'no-reply@' . mail_base_domain() : '');
+    $headers = "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+    if ($from) $headers .= "From: Reality Health Bridge <$from>\r\n";
+    if (!$ok && filter_var($set, FILTER_VALIDATE_EMAIL)) $headers .= "Reply-To: $set\r\n";
     $subject = mb_encode_mimeheader(preg_replace('/[\r\n]+/', ' ', $subject), 'UTF-8');
-    return @mail(implode(', ', $to), $subject, $body, $headers, filter_var($from, FILTER_VALIDATE_EMAIL) ? '-f' . $from : '');
+    return @mail(implode(', ', $to), $subject, $body, $headers, $from ? '-f' . $from : '');
 }
 
 // ---- local (Kampala) <-> UTC for the date-and-time boxes
@@ -138,4 +153,10 @@ function support_contacts(): array {
     if ($raw === '') return DEFAULT_SUPPORT_CONTACTS;
     $list = json_decode($raw, true);
     return is_array($list) ? $list : DEFAULT_SUPPORT_CONTACTS;
+}
+
+// Feedback from the app that no RHS admin has marked as read yet (0 before database update 5).
+function new_feedback_count(): int {
+    try { return (int)db()->query("SELECT COUNT(*) FROM app_feedback WHERE status = 'new'")->fetchColumn(); }
+    catch (Throwable $e) { return 0; }
 }

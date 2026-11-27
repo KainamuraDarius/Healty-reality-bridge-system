@@ -63,11 +63,10 @@ async function render(){
   }
   if(PAGES[currentTab] && !pageAllowed(currentTab)) currentTab = 'dashboard';
 
-  const SHOW_NEAR_EXPIRY_BANNER = false; // DEV: flip back to true before release
+  const SHOW_NEAR_EXPIRY_BANNER = true; // warn 7 days before the trial / subscription ends
   const renewLink = can('subscription') ? ` <a data-goto="system" role="button" tabindex="0">Open System to renew →</a>` : '';
   const nearExpiryBanner = lic.inGrace
     ? alertBox(`<span class="alert-title">${lic.trial ? 'Your free trial has ended' : `Subscription for ${esc(lic.facility)} has expired`}</span>Expired on ${lic.expiryDate}. You have <strong>${lic.graceDaysLeft} day(s)</strong> left before the app locks. ${can('subscription') ? '' : 'Tell your super admin to renew it.'}${renewLink}`, 'danger')
-    // DEV: near-expiry warning banner hidden during development — set to true to re-enable.
     : (SHOW_NEAR_EXPIRY_BANNER && lic.configured && lic.active && lic.daysLeft!==null && lic.daysLeft>=0 && lic.daysLeft<=7)
       ? alertBox(`${lic.trial ? 'Your free trial' : `Subscription for <strong>${esc(lic.facility)}</strong>`} ends in <strong>${lic.daysLeft} day(s)</strong> (${lic.expiryDate}). ${can('subscription') ? (lic.trial ? 'Pick a package to keep going.' : '') : 'Ask your super admin to renew it.'}${renewLink}`, 'warning', 'clock')
       : '';
@@ -116,6 +115,7 @@ async function render(){
         </header>
         <div class="content">
           ${nearExpiryBanner ? `<div class="banner-area">${nearExpiryBanner}</div>` : ''}
+          ${termsBannerHtml() ? `<div class="banner-area">${termsBannerHtml()}</div>` : ''}
           <div id="annArea" class="banner-area" hidden></div>
           <div id="tabContent"></div>
           <div class="footer-note">Keep this book updated daily — NDA inspections check stock, batch &amp; expiry records.</div>

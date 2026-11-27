@@ -1,4 +1,7 @@
-# Going live: pharmacy app update 3 + the RHS Admin site
+# First install: the RHS Admin site (and pharmacy app update 3)
+
+> **This guide is the record of the very first install (November 2026).** For any later update,
+> database change, backup or everyday task, use **[MAINTENANCE.md](../MAINTENANCE.md)** at the top of the repository.
 
 Do **Part A** first, then **Part B**. Everything happens in cPanel (simba.afriregister.com).
 The files you need are on this computer, in `/home/kainamura/pharma/`:
@@ -89,7 +92,5 @@ File Manager → `app/config.php` → right-click → **Edit**:
 ---
 
 ## Every later update
-- Pharmacy app: I give you a small zip; extract it over `hrb.truehome.com.ug` (never overwrite `api/config.php`).
-- Admin site: extract the new zip over `bhr-admin.truehome.com.ug` **but keep your `app/config.php`**
-  (download a copy first, or skip that file when asked to overwrite).
-- Before the real launch: turn the "free trial ends in X days" banner back on (I will do it — just remind me).
+Follow **[MAINTENANCE.md → Putting an update live](../MAINTENANCE.md#5-putting-an-update-live)**. Update zips are made
+with `tools/make-update-zips.sh` and never contain `app/config.php`, so your password and setup key stay untouched.

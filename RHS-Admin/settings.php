@@ -66,13 +66,16 @@ if (is_post()) {
     if ($do === 'alert_options') {
         $from = post('mail_from');
         if ($from !== '' && !filter_var($from, FILTER_VALIDATE_EMAIL)) { flash('error', '“Send from” must be an email address, e.g. no-reply@truehome.com.ug'); $back('alerts'); }
+        if (is_free_mail($from)) { flash('error', '“Send from” cannot be a Gmail/Yahoo/Outlook address: those emails get rejected or sent to spam. Use an address on your own domain, e.g. no-reply@' . mail_base_domain()); $back('alerts'); }
         $signups = post('alert_signups') === '1' ? '1' : '0';
         $acts = post('alert_activations') === '1' ? '1' : '0';
+        $fb = post('alert_feedback') === '1' ? '1' : '0';
         save_setting('alert_signups', $signups);
         save_setting('alert_activations', $acts);
+        save_setting('alert_feedback', $fb);
         save_setting('mail_from', $from);
         save_setting('admin_url', site_url());
-        audit('settings.alerts', null, 'Email alerts', ['signups' => $signups === '1', 'subscriptions' => $acts === '1', 'from' => $from]);
+        audit('settings.alerts', null, 'Email alerts', ['signups' => $signups === '1', 'subscriptions' => $acts === '1', 'feedback' => $fb === '1', 'from' => $from]);
         flash('success', 'Saved.');
         $back('alerts');
     }
@@ -117,6 +120,7 @@ $contactsSaved = setting('support_contacts') !== '';
 $recipients = email_list(setting('signup_emails'));
 $alertSignups = setting('alert_signups', '1') === '1';
 $alertActs = setting('alert_activations', '1') === '1';
+$alertFeedback = setting('alert_feedback', '1') === '1';
 $from = setting('mail_from');
 $host = preg_replace('/^[^.]+\./', '', preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? 'example.com'));
 $trialDays = (int)setting('trial_days', (string)TRIAL_DAYS_DEFAULT);
@@ -179,8 +183,9 @@ layout_start('Settings', 'settings.php', ['sub' => 'Support contacts shown in th
     <?= csrf_field() ?><input type="hidden" name="do" value="alert_options">
     <label class="check"><input type="checkbox" name="alert_signups" value="1" <?= $alertSignups ? 'checked' : '' ?>> A new facility registers</label>
     <label class="check"><input type="checkbox" name="alert_activations" value="1" <?= $alertActs ? 'checked' : '' ?>> A facility subscribes or renews in the app (activation code or Mobile Money)</label>
+    <label class="check"><input type="checkbox" name="alert_feedback" value="1" <?= $alertFeedback ? 'checked' : '' ?>> Someone sends feedback or a rating from the app</label>
     <div class="field narrow"><label for="mail_from">Send from</label><input type="email" id="mail_from" name="mail_from" value="<?= h($from) ?>" placeholder="no-reply@<?= h($host) ?>">
-      <div class="hint">An address on your own domain (create it in cPanel → Email Accounts). Emails from other domains often land in spam.</div></div>
+      <div class="hint">An address on your own domain (create it in cPanel → Email Accounts). Do not use a Gmail/Yahoo address here: Gmail rejects those as fake. Leave it empty to use no-reply@<?= h(mail_base_domain()) ?>.</div></div>
     <div class="row">
       <button class="btn" type="submit"><?= icon('check') ?>Save</button>
       <?php if ($recipients): ?><button class="btn secondary" type="submit" form="testMail">Send a test email</button><?php endif; ?>

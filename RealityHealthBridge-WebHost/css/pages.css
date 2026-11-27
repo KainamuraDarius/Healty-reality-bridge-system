@@ -578,3 +578,36 @@ html[data-theme="dark"] .bk-card.drive .bk-ic{ color: #8AB4F8; } html[data-theme
 .pay-steps li.bad::before{ content: "!"; background: var(--danger, #C62828); color: #fff; }
 @keyframes paypulse{ 50%{ box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 22%, transparent); } }
 @media (prefers-reduced-motion: reduce){ .pay-steps li.active::before{ animation: none; } }
+
+/* ---------- Settings → Feedback & rating ---------- */
+.fb-rate{ border: 0; padding: 0; margin: 0 0 var(--sp-4); min-width: 0; }
+.fb-stars{ display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.fb-star{ display: inline-flex; margin: 0; padding: 4px; border-radius: 10px; cursor: pointer; color: var(--text-3); transition: transform .12s ease, color .12s ease; }
+.fb-star .ic{ width: 34px; height: 34px; }
+.fb-star:hover{ transform: scale(1.12); }
+.fb-star.on{ color: #F5A524; }
+.fb-star.on .ic{ fill: #F5A524; }
+.fb-star:has(input:focus-visible){ box-shadow: var(--focus-ring); }
+.fb-star-label{ margin-left: 8px; font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); }
+.fb-stars-show{ display: inline-flex; gap: 1px; color: var(--text-3); vertical-align: middle; }
+.fb-stars-show .ic{ width: 18px; height: 18px; }
+.fb-stars-show.small .ic{ width: 15px; height: 15px; }
+.fb-stars-show .on{ color: #F5A524; }
+.fb-stars-show .on .ic{ fill: #F5A524; }
+.fb-list{ list-style: none; margin: 0; padding: 0; }
+.fb-list li{ padding: 12px 0; border-bottom: 1px solid var(--border); }
+.fb-list li:last-child{ border-bottom: 0; padding-bottom: 0; }
+.fb-list li:first-child{ padding-top: 0; }
+.fb-list-head{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.fb-type{ display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); font-size: var(--fs-xs); font-weight: 700; }
+.fb-seen{ display: inline-flex; align-items: center; gap: 4px; color: var(--success); font-weight: 700; }
+.fb-seen .ic{ width: 14px; height: 14px; }
+
+/* Privacy (Settings -> Privacy, registration, js/services/privacy.js) */
+.privacy-docs{ display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+.privacy-facts{ margin: 0; padding-left: 18px; display: grid; gap: 8px; line-height: 1.5; }
+.agree-tick{ margin: 4px 0 16px; }
+.agree-tick span{ font-size: 14px; line-height: 1.45; font-weight: 500; }
+.agree-tick strong{ display: inline; font-size: inherit; font-weight: 700; }
+.privacy-hint{ display: flex; gap: 6px; align-items: flex-start; margin: 2px 0 10px; }
+.privacy-hint svg{ width: 14px; height: 14px; flex: 0 0 auto; margin-top: 2px; }

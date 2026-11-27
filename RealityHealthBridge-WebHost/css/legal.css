@@ -1,0 +1,60 @@
+/* Privacy Policy and Terms of Use pages (privacy.html, terms.html). Standalone: no app scripts. */
+:root{
+  --bg:#F4F7FB; --paper:#FFFFFF; --ink:#16202C; --ink-2:#3D4756; --ink-3:#6B7584; --line:#DDE3EC;
+  --brand:#1565C0; --brand-soft:#E7F0FB; --note:#FFF7E6; --note-line:#F2D49B;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0E141B; --paper:#151D27; --ink:#E8EDF3; --ink-2:#C3CCD7; --ink-3:#8D98A6; --line:#26313E;
+         --brand:#6AA8F0; --brand-soft:#16273B; --note:#2A2314; --note-line:#5A4720; }
+}
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; scroll-padding-top:16px; }
+body{ margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a{ color:var(--brand); text-underline-offset:2px; }
+a:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; border-radius:3px; }
+
+.lg-top{ background:var(--paper); border-bottom:1px solid var(--line); }
+.lg-top-in{ max-width:820px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; gap:12px; justify-content:space-between; }
+.lg-brand{ display:flex; align-items:center; gap:10px; color:var(--ink); text-decoration:none; font-weight:700; }
+.lg-brand img{ width:34px; height:34px; border-radius:8px; }
+.lg-brand small{ display:block; font-weight:500; font-size:12px; color:var(--ink-3); letter-spacing:.3px; }
+.lg-top nav{ display:flex; gap:16px; font-size:14px; }
+@media (max-width:520px){ .lg-brand small{ display:none; } .lg-top nav{ flex-direction:column; gap:2px; text-align:right; font-size:13px; } }
+
+main{ max-width:820px; margin:0 auto; padding:28px 20px 56px; }
+.lg-paper{ background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:32px clamp(20px, 5vw, 48px); }
+h1{ font:800 clamp(26px, 5vw, 34px)/1.2 "Poppins", "Inter", system-ui, sans-serif; margin:0 0 6px; letter-spacing:-.3px; }
+.lg-meta{ color:var(--ink-3); font-size:14px; margin:0 0 22px; }
+.lg-lead{ font-size:17px; color:var(--ink-2); }
+h2{ font:700 20px/1.3 "Poppins", "Inter", system-ui, sans-serif; margin:36px 0 8px; padding-top:20px; border-top:1px solid var(--line); }
+h3{ font-size:16px; margin:20px 0 4px; }
+p, li{ color:var(--ink-2); }
+ul{ padding-left:22px; }
+li{ margin:4px 0; }
+strong{ color:var(--ink); }
+
+.lg-toc{ background:var(--brand-soft); border-radius:10px; padding:14px 18px; margin:20px 0 8px; }
+.lg-toc strong{ display:block; margin-bottom:4px; font-size:14px; }
+.lg-toc ol{ margin:0; padding-left:20px; columns:2 220px; column-gap:24px; font-size:14px; }
+.lg-toc li{ margin:0; padding:2px 0; break-inside:avoid; }
+
+.lg-note{ background:var(--note); border:1px solid var(--note-line); border-radius:10px; padding:12px 16px; margin:16px 0; }
+.lg-note p{ margin:0; }
+.lg-table{ width:100%; border-collapse:collapse; font-size:15px; margin:10px 0; }
+.lg-table th, .lg-table td{ text-align:left; vertical-align:top; padding:10px 12px; border-bottom:1px solid var(--line); }
+.lg-table th{ width:32%; color:var(--ink); font-weight:600; }
+.lg-table td{ color:var(--ink-2); }
+@media (max-width:560px){
+  .lg-table, .lg-table tbody, .lg-table tr, .lg-table th, .lg-table td{ display:block; width:100%; }
+  .lg-table th{ border-bottom:0; padding-bottom:0; }
+}
+.lg-contact{ display:grid; gap:4px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:14px 18px; }
+
+footer{ max-width:820px; margin:0 auto; padding:0 20px 40px; color:var(--ink-3); font-size:13px; text-align:center; }
+@media print{
+  body{ background:#fff; }
+  .lg-top nav, .lg-toc{ display:none; }
+  .lg-paper{ border:0; padding:0; }
+  a{ color:inherit; }
+}

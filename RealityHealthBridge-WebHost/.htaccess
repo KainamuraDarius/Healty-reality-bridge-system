@@ -24,7 +24,7 @@ AddType application/manifest+json .webmanifest
 # Always check for a newer copy of these, so an upload reaches every phone quickly.
 # (Offline, the service worker still serves its saved copy.)
 <IfModule mod_headers.c>
-  <FilesMatch "^(index\.html|service-worker\.js|config\.js|manifest\.json)$">
+  <FilesMatch "^(index\.html|privacy\.html|terms\.html|service-worker\.js|config\.js|manifest\.json)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
   Header always set X-Content-Type-Options "nosniff"

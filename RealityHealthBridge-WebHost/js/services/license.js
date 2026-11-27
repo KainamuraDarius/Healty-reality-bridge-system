@@ -7,7 +7,7 @@ const GRACE_DAYS = 7;          // after expiry, keep working (with a warning) th
 
 const PACKAGES = {
   starter:  { key:'starter',  label:'Starter',  devices:2, setupFee:150000 },
-  standard: { key:'standard', label:'Standard', devices:5, setupFee:300000 }
+  standard: { key:'standard', label:'Standard', devices:8, setupFee:300000 }
 };
 const MONTHLY_FEE = 20000; // renewal after the first 30 days — the setup fee already covers month one
 
@@ -17,7 +17,7 @@ function computeLicenseCode(facility, expiryDate, maxDevices){
   for(let i=0;i<raw.length;i++){ hash = ((hash*31) + raw.charCodeAt(i)) >>> 0; }
   return hash.toString(36).toUpperCase();
 }
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 14;
 // Every licence change records when and how it happened. The server uses this to keep licence
 // changes apart from profile edits, and to check codes (see api/lib.php merge_facility).
 function stampLicense(lic, source, code){
@@ -65,7 +65,7 @@ async function renewLicense(expiryDate, codeEntered){
   await saveSettings();
   return true;
 }
-// Starts the one-time 7-day free trial automatically when a facility finishes first-ever setup.
+// Starts the one-time 14-day free trial automatically when a facility finishes first-ever setup.
 // The trial gets the full Standard device limit so facilities can fairly evaluate everything.
 async function startTrialLicense(facilityName){
   if(STATE.settings.license || STATE.settings.trialUsed) return; // never overwrite an existing/past trial or a paid license

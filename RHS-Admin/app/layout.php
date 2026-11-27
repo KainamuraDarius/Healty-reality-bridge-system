@@ -10,7 +10,9 @@ function nav_groups(): array {
                          ['payments.php', 'Payments', 'card', false],
                          ['reports.php', 'Reports', 'report', false]]],
         ['Help & news', [['support.php', 'Support', 'alert', false],
-                         ['announcements.php', 'Messages', 'megaphone', false]]],
+                         ['announcements.php', 'Messages', 'megaphone', false],
+                         ['feedback.php', 'Feedback', 'star', true],
+                         ['privacy.php', 'Privacy', 'shield', true]]],
         ['RHS',         [['team.php', 'Admin team', 'users', true],
                          ['settings.php', 'Settings', 'gear', true],
                          ['audit.php', 'Audit log', 'list', false]]],
@@ -32,6 +34,8 @@ function icon(string $name): string {
         'user'  => '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 16 0v1"/>',
         'logout'=> '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
         'menu'  => '<path d="M3 6h18M3 12h18M3 18h18"/>',
+        'star'  => '<path d="M11.5 2.9a.6.6 0 0 1 1 0l2.6 5.4 5.9.8a.6.6 0 0 1 .3 1l-4.3 4.2 1 5.9a.6.6 0 0 1-.8.6L12 18l-5.3 2.8a.6.6 0 0 1-.8-.6l1-5.9-4.3-4.2a.6.6 0 0 1 .3-1l5.9-.8Z"/>',
+        'download' => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
         'store' => '<path d="M3 9 4.5 4h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9h18"/><path d="M9 20v-6h6v6"/>',
         'alert' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
         'phone' => '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>',
@@ -52,6 +56,7 @@ function icon(string $name): string {
         'shield'=> '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
         'refresh'=> '<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/>',
         'lock'  => '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        'trash' => '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/><path d="M10 11v6M14 11v6"/>',
         'trend' => '<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
         'device'=> '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
         'history'=> '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
@@ -66,6 +71,8 @@ function layout_start(string $title, string $active, array $opts = []): void {
     $a = current_admin();
     $self = basename($_SERVER['SCRIPT_NAME'] ?? '');
     $newSignups = $a ? new_signups_count($a) : 0;
+    $newFeedback = ($a && $a['role'] === 'super') ? new_feedback_count() : 0;
+    $openPrivacy = ($a && $a['role'] === 'super') ? open_privacy_count() : 0;
     $today = (new DateTime('now', new DateTimeZone(config()['timezone'] ?? 'Africa/Kampala')))->format('D j M Y');
     ?><!doctype html>
 <html lang="en">
@@ -78,7 +85,7 @@ function layout_start(string $title, string $active, array $opts = []): void {
 <link rel="icon" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/admin.css?v=5">
+<link rel="stylesheet" href="assets/admin.css?v=7">
 <script src="assets/admin.js?v=5" defer></script>
 </head>
 <body class="<?= $a ? 'signed-in' : 'signed-out' ?>">
@@ -93,7 +100,7 @@ function layout_start(string $title, string $active, array $opts = []): void {
         if (!$items) continue; ?>
         <div class="nav-group"><span class="nav-label"><?= h($group) ?></span>
         <?php foreach ($items as [$file, $label, $ic]): $on = $file === $self || $file === $active; ?>
-          <a href="<?= h($file) ?>" class="<?= $on ? 'active' : '' ?>" <?= $on ? 'aria-current="page"' : '' ?>><?= icon($ic) ?><span><?= h($label) ?></span><?php if ($file === 'pharmacies.php' && $newSignups): ?><span class="nav-count" title="New sign-ups"><?= $newSignups ?> new</span><?php endif; ?></a>
+          <a href="<?= h($file) ?>" class="<?= $on ? 'active' : '' ?>" <?= $on ? 'aria-current="page"' : '' ?>><?= icon($ic) ?><span><?= h($label) ?></span><?php if ($file === 'pharmacies.php' && $newSignups): ?><span class="nav-count" title="New sign-ups"><?= $newSignups ?> new</span><?php endif; ?><?php if ($file === 'feedback.php' && $newFeedback): ?><span class="nav-count" title="Unread feedback"><?= $newFeedback ?> new</span><?php endif; ?><?php if ($file === 'privacy.php' && $openPrivacy): ?><span class="nav-count" title="Deletion requests waiting"><?= $openPrivacy ?> open</span><?php endif; ?></a>
         <?php endforeach; ?></div>
       <?php endforeach; ?>
     </nav>

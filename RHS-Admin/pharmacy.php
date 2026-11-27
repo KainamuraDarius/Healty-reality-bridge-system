@@ -67,6 +67,19 @@ if (is_post()) {
         redirect($self . '#profile');
     }
 
+    // ---- erase all the facility's data (privacy request). Super admins only; cannot be undone.
+    if ($do === 'erase') {
+        if (!is_super()) { flash('error', 'Only RHS super admins can erase a facility.'); redirect($self); }
+        if (mb_strtolower(trim(post('confirm_name'))) !== mb_strtolower(trim((string)$f['name']))) {
+            flash('error', 'The name you typed does not match. Nothing was deleted.'); redirect($self . '#erase');
+        }
+        $by = current_admin()['full_name'] ?? '' ?: (current_admin()['email'] ?? 'RHS');
+        $counts = erase_facility($f, $by);
+        audit('privacy.facility_erased', $f['id'], $name, ['deleted' => array_filter($counts), 'note' => mb_substr(post('note'), 0, 300)]);
+        flash('success', "All of $name's data was deleted from the server. Its phones can no longer sync or log in.");
+        redirect('privacy.php');
+    }
+
     if ($do === 'renew') {
         $tier = array_key_exists(post('tier'), PACKAGES) ? post('tier') : ($f['license_tier'] ?: 'standard');
         $devices = post('devices') !== '' ? max(1, min(50, (int)post('devices'))) : null;
@@ -86,7 +99,7 @@ if (is_post()) {
             $until = post('until');
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $until) || $until < $today) { flash('error', 'Choose an end date from today onwards.'); redirect($self); }
         }
-        $days = in_array((int)post('days'), TRIAL_EXTEND_DAYS, true) ? (int)post('days') : 7;
+        $days = in_array((int)post('days'), TRIAL_EXTEND_DAYS, true) ? (int)post('days') : 14;
         $until = extend_trial($f, $days, $until, post('note'));
         flash('success', "Free trial for $name now runs until " . show_date($until) . '. Their devices update on their next sync.');
         redirect($self);
@@ -229,6 +242,7 @@ $phone = preg_replace('/[^\d+]/', '', (string)$f['contact']);
 layout_start($name, 'pharmacies.php', ['back' => ['All facilities', 'pharmacies.php'], 'no_title' => true]);
 ?>
 <?php if ($f['suspended']): ?><div class="alert alert-danger"><strong>Suspended:</strong> <?= h($f['suspended_reason']) ?></div><?php endif; ?>
+<?php if ($dataReq = open_data_request($f['id'])): ?><div class="alert alert-warning"><strong>Data deletion requested</strong> by <?= h($dataReq['user_name'] ?: 'the super admin') ?> on <?= h(show_time($dataReq['created_at'])) ?>. Confirm with them on <strong><?= h($dataReq['contact']) ?></strong>, then <?= is_super() ? '<a href="#erase">erase the facility</a>' : 'ask an RHS super admin to erase it' ?>. See <a href="privacy.php">Privacy</a>.</div><?php endif; ?>
 
 <section class="panel fac-head">
   <span class="fac-mark"><?php if (!empty($f['logo']) && str_starts_with($f['logo'], 'data:image/')): ?><img src="<?= h($f['logo']) ?>" alt=""><?php else: ?><?= h(admin_initials($name)) ?><?php endif; ?></span>
@@ -276,6 +290,7 @@ layout_start($name, 'pharmacies.php', ['back' => ['All facilities', 'pharmacies.
     <dt>Phone</dt><dd><?= h($f['contact'] ?: '—') ?></dd>
     <dt>Email</dt><dd><?= h($f['email'] ?: '—') ?></dd>
     <dt>Registered</dt><dd><?= show_time($f['created_at']) ?></dd>
+    <?php if (privacy_ready()): ?><dt>Privacy &amp; terms</dt><dd><?php if ($f['terms_version'] !== ''): ?><?= badge($f['terms_version'] === TERMS_VERSION_CURRENT ? 'Agreed' : 'Agreed to an older version', $f['terms_version'] === TERMS_VERSION_CURRENT ? 'success' : 'warning') ?><span class="sub"><?= h($f['terms_accepted_by'] ?: '—') ?> · <?= $f['terms_accepted_at'] ? h(show_time($f['terms_accepted_at'])) : '' ?> · version <?= h($f['terms_version']) ?></span><?php else: ?><?= badge('Not agreed yet', 'warning') ?><span class="sub">The super admin is asked in the app.</span><?php endif; ?></dd><?php endif; ?>
     <dt>Facility ID</dt><dd class="small subtle"><?= h($f['id']) ?></dd>
   </dl>
   <details class="edit-box">
@@ -314,6 +329,26 @@ layout_start($name, 'pharmacies.php', ['back' => ['All facilities', 'pharmacies.
   <?php foreach ($months as $x): ?><tr><td><?= h(DateTime::createFromFormat('Y-m-d', $x['ym'] . '-01')->format('F Y')) ?></td><td class="num"><?= number_format((int)$x['n']) ?></td><td class="num"><?= money($x['total']) ?></td></tr><?php endforeach; ?>
   </tbody></table></div><?php endif; ?>
 </section>
+<?php if (is_super()): ?>
+<section class="panel danger-zone" id="erase">
+  <h2><?= icon('trash') ?>Erase this facility's data</h2>
+  <p class="small">Only when the facility asked for it (Privacy page) and you confirmed with them, or when it ended more than <?= KEEP_MONTHS_AFTER_END ?> months ago. <strong>This cannot be undone.</strong></p>
+  <ul class="small">
+    <li>Deleted from the server: profile, logins, devices, stock, sales and patient details, certificates, feedback.</li>
+    <li>Kept: payments to RHS (tax records, without the phone number), the audit log, and the request.</li>
+    <li>The facility's phones are logged out and can never upload this data again. Records still on those phones stay there.</li>
+  </ul>
+  <details class="edit-box">
+    <summary>Erase <?= h($name) ?>…</summary>
+    <form method="post" autocomplete="off" data-confirm="Permanently delete ALL of <?= h($name) ?>'s data? This cannot be undone.">
+      <?= csrf_field() ?><input type="hidden" name="do" value="erase"><input type="hidden" name="id" value="<?= h($f['id']) ?>">
+      <div class="field"><label for="confirm_name">Type the facility name to confirm: <strong><?= h($f['name']) ?></strong></label><input type="text" id="confirm_name" name="confirm_name" required></div>
+      <div class="field"><label for="erase_note">Note for the audit log</label><input type="text" id="erase_note" name="note" maxlength="300" placeholder="e.g. Confirmed by phone with Jane on 2 Dec"></div>
+      <button class="btn danger" type="submit"><?= icon('trash') ?>Erase all data</button>
+    </form>
+  </details>
+</section>
+<?php endif; ?>
 <?php elseif ($tab === 'licence'): ?>
 <section class="panel" id="renew">
   <h2><?= icon('refresh') ?>Renew or extend</h2>
@@ -338,7 +373,7 @@ layout_start($name, 'pharmacies.php', ['back' => ['All facilities', 'pharmacies.
   <form method="post" class="form-grid4" data-confirm="Extend the free trial for <?= h($name) ?>?">
     <?= csrf_field() ?><input type="hidden" name="do" value="trial"><input type="hidden" name="id" value="<?= h($f['id']) ?>">
     <div class="field"><label for="tdays">Add</label><select id="tdays" name="days">
-      <?php foreach (TRIAL_EXTEND_DAYS as $n): ?><option value="<?= $n ?>"><?= $n ?> days</option><?php endforeach; ?></select>
+      <?php foreach (TRIAL_EXTEND_DAYS as $n): ?><option value="<?= $n ?>" <?= $n === 14 ? 'selected' : '' ?>><?= $n ?> days</option><?php endforeach; ?></select>
       <div class="hint">From <?= ($f['license_trial'] && $f['license_expiry'] > $today) ? 'the current end date' : 'today' ?>.</div></div>
     <div class="field"><label for="tuntil">…or until this date</label><input type="date" id="tuntil" name="until" min="<?= h($today) ?>"></div>
     <div class="field span2"><label for="tnote">Note for the audit log (optional)</label><input type="text" id="tnote" name="note" placeholder="e.g. Testing the system with us"></div>
@@ -416,7 +451,12 @@ layout_start($name, 'pharmacies.php', ['back' => ['All facilities', 'pharmacies.
     </div>
   </div>
 
-  <h3 class="mt">Operational certificates <span class="subtle small">(<?= count($docs) ?>)</span></h3>
+  <div class="panel-head mt">
+    <h3 class="mb0">Operational certificates <span class="subtle small">(<?= count($docs) ?>)</span></h3>
+    <?php if (count($docs) > 1 && class_exists('ZipArchive')): ?>
+      <a class="btn small secondary" href="document.php?f=<?= h(urlencode($f['id'])) ?>&amp;all=1" download><?= icon('download') ?>Download all (.zip)</a>
+    <?php endif; ?>
+  </div>
   <?php if (!$docs): ?><p class="small muted">None uploaded yet.</p><?php else: ?>
   <div class="table-wrap"><table>
     <thead><tr><th>Certificate</th><th>Valid until</th><th>Added</th><th></th></tr></thead>
@@ -428,6 +468,7 @@ layout_start($name, 'pharmacies.php', ['back' => ['All facilities', 'pharmacies.
         <td class="small"><?= h(show_time($d['created_at'], false)) ?></td>
         <td class="nowrap">
           <a class="btn small secondary" href="document.php?f=<?= h(urlencode($f['id'])) ?>&amp;d=<?= h(urlencode($d['id'])) ?>" target="_blank" rel="noopener">Open</a>
+          <a class="btn small secondary" href="document.php?f=<?= h(urlencode($f['id'])) ?>&amp;d=<?= h(urlencode($d['id'])) ?>&amp;download=1" download><?= icon('download') ?>Download</a>
           <form method="post" class="inline" data-confirm="Remove this certificate?">
             <?= csrf_field() ?><input type="hidden" name="do" value="doc_delete"><input type="hidden" name="id" value="<?= h($f['id']) ?>"><input type="hidden" name="doc_id" value="<?= h($d['id']) ?>">
             <button class="btn small danger" type="submit">Remove</button>

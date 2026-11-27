@@ -98,7 +98,7 @@ async function ensureConnected(){
   if(!admin || !admin.login_key){ setConnection('needs_password'); return false; }
   try{
     const res = await apiPost('register.php', { facility:rowForServer(fac), user:Object.assign(rowForServer(admin), { role:'owner', login_key:admin.login_key }),
-      device_id:CURRENT_DEVICE_ID, device_label:deviceLabelGuess() });
+      device_id:CURRENT_DEVICE_ID, device_label:deviceLabelGuess(), terms_version:termsVersionForServer() });
     await rememberLogin(res);
     return true;
   }catch(e){
@@ -119,7 +119,7 @@ async function connectWithPassword(username, password){
   try{
     const loginKey = await pbkdf2B64(password, 'k:' + acc.pwSalt);
     const res = await apiPost('register.php', { facility:rowForServer(fac), user:Object.assign(rowForServer(row), { role:'owner', login_key:loginKey }),
-      device_id:CURRENT_DEVICE_ID, device_label:deviceLabelGuess() });
+      device_id:CURRENT_DEVICE_ID, device_label:deviceLabelGuess(), terms_version:termsVersionForServer() });
     await rememberLogin(res);
   }catch(e){
     if(e.code !== 'already_registered' && e.code !== 'email_taken') throw e;

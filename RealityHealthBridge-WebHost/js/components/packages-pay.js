@@ -2,7 +2,8 @@
 // ---------- Packages & Pay (shared UI: lock screen + System tab) ----------
 const PLAN_INFO = {
   starter:  { for:'For a drug shop or a single counter', icon:'pill' },
-  standard: { for:'For busy facilities with a team', icon:'building' },
+  standard: { for:'For busy facilities and facilities with several branches', icon:'building',
+              extra:'One account for all your branches — every phone and computer shares the same records' },
 };
 const PLAN_FEATURES = ['Stock, batches &amp; expiry', 'Sales, receipts &amp; patient numbers', 'Reports, finance &amp; profit', 'Offline use, sync &amp; backups', 'Support by phone &amp; WhatsApp'];
 
@@ -22,7 +23,7 @@ function packagesAndPayHtml(prefix, opts = {}){
   const paid = cur === 'starter' || cur === 'standard';
   const hasTier = paid; // used by the activation-code form below
   const money = n => `UGX ${n.toLocaleString()}`;
-  const feat = (devices)=> `<ul class="plan-feats"><li>${icon('smartphone')}<span><strong>Up to ${devices}</strong> phones or computers</span></li>${PLAN_FEATURES.map(f=>`<li>${icon('check')}<span>${f}</span></li>`).join('')}</ul>`;
+  const feat = (devices, extra)=> `<ul class="plan-feats"><li>${icon('smartphone')}<span><strong>Up to ${devices}</strong> phones or computers</span></li>${extra ? `<li>${icon('building')}<span>${extra}</span></li>` : ''}${PLAN_FEATURES.map(f=>`<li>${icon('check')}<span>${f}</span></li>`).join('')}</ul>`;
 
   const trialCard = opts.compact ? '' : `
     <article class="plan-card plan-trial${cur==='trial' ? ' is-current' : (paid ? ' is-used' : '')}">
@@ -30,7 +31,7 @@ function packagesAndPayHtml(prefix, opts = {}){
       <div class="plan-top"><span class="plan-ic">${icon('gift')}</span><div><h3>Free trial</h3><p>Try everything before paying</p></div></div>
       <div class="plan-price"><strong>Free</strong><span>${publicTrialDays()} days · every feature</span></div>
       <div class="plan-then">No payment or card needed to start</div>
-      ${feat(lic.configured && lic.trial ? lic.maxDevices : DEFAULT_MAX_DEVICES)}
+      ${feat(lic.configured && lic.trial ? lic.maxDevices : PACKAGES.standard.devices)}
       <div class="plan-cta">${cur==='trial'
         ? `<span class="plan-state">${lic.daysLeft >= 0 ? `${lic.daysLeft} day${lic.daysLeft===1?'':'s'} left` : 'Ended'} — choose a plan to keep going</span>`
         : `<span class="plan-state muted">${paid ? 'Already used' : 'Starts when you register'}</span>`}</div>
@@ -49,7 +50,7 @@ function packagesAndPayHtml(prefix, opts = {}){
       <div class="plan-top"><span class="plan-ic">${icon(info.icon || 'package')}</span><div><h3>${p.label}</h3><p>${info.for || ''}</p></div></div>
       <div class="plan-price"><strong>${money(p.setupFee)}</strong><span>one-time setup · first 30 days included</span></div>
       <div class="plan-then">then <strong>${money(MONTHLY_FEE)}</strong> a month</div>
-      ${feat(p.devices)}
+      ${feat(p.devices, info.extra)}
       <div class="plan-cta">${cta}</div>
     </article>`;
   };
@@ -76,8 +77,8 @@ function packagesAndPayHtml(prefix, opts = {}){
         <div class="field"><label for="${prefix}CodeFacility">Facility name</label><input type="text" id="${prefix}CodeFacility" value="${esc((lic.configured && lic.facility) || (STATE.settings.identity ? STATE.settings.identity.name : ''))}" required></div>
         <div class="field"><label for="${prefix}CodePackage">Package</label>
           <select id="${prefix}CodePackage">
-            <option value="starter" ${hasTier && lic.tier==='starter' ? 'selected':''}>Starter — 2 devices</option>
-            <option value="standard" ${hasTier && lic.tier==='standard' ? 'selected':''}>Standard — 5 devices</option>
+            <option value="starter" ${hasTier && lic.tier==='starter' ? 'selected':''}>Starter — ${PACKAGES.starter.devices} devices</option>
+            <option value="standard" ${hasTier && lic.tier==='standard' ? 'selected':''}>Standard — ${PACKAGES.standard.devices} devices (for branches)</option>
           </select>
         </div>
         <div class="field"><label for="${prefix}CodeExpiry">New expiry date</label><input type="date" id="${prefix}CodeExpiry" required></div>

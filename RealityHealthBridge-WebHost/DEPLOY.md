@@ -1,5 +1,8 @@
 # Putting Reality Health Bridge on your cPanel hosting
 
+> This guide is for the **first install**. Once the app is live, use **[MAINTENANCE.md](../MAINTENANCE.md)** at the top of the
+> repository for updates, database changes, backups, everyday tasks and troubleshooting.
+
 This guide takes you from the files on your computer to a working app on your own domain,
 with the MySQL database and offline sync. Allow about 30 minutes the first time.
 
@@ -15,7 +18,7 @@ Everywhere below, replace **mydomain.com** with your real domain.
 | `assets/`, `icons/`, `css/`, `js/` folders | `public_html/` | Yes |
 | `api/` folder (includes its own `.htaccess`) | `public_html/api/` | Yes |
 | `database/schema.sql` | nowhere: you paste it into phpMyAdmin (Step 1) | No |
-| `supabase/`, `netlify/`, `apps-script/`, `docs/`, `README.txt`, `DEPLOY.md` | nowhere | No |
+| `apps-script/`, `DEPLOY.md` | nowhere | No |
 
 > **Hidden files:** `.htaccess` starts with a dot, so File Manager hides it. In File Manager click
 > **Settings** (top right), tick **Show Hidden Files (dotfiles)**, and save. Check that both
@@ -169,7 +172,11 @@ device first, because its own separate records are replaced).
 
 ## Updating the app later
 
-1. Upload the changed files (same places as before).
+> The full, current procedure (backup → database updates → zips → checks → record it) is in
+> **[MAINTENANCE.md → Putting an update live](../MAINTENANCE.md#5-putting-an-update-live)**. The short version:
+
+1. Upload the changed files (same places as before), as made by `tools/make-update-zips.sh` (it leaves out `api/config.php`,
+   `api/payment-config.php` and `config.js`).
 2. **Important:** if you added, renamed or removed any file, open `service-worker.js`, add it to the
    `PRECACHE` list, and change `CACHE_NAME` (e.g. `'rhb-cache-v10'` → `'rhb-cache-v11'`).
    It's good practice to bump `CACHE_NAME` on every upload anyway.
@@ -186,8 +193,12 @@ run on top of the old one.
 | `database/update-2-device-health.sql` | device health on the admin Support page | 1.14 |
 | `database/update-3-stamp-certificates.sql` | digital stamp, operational certificates, position (separate from cadre), super admin + admin permissions, super admin edits the profile | 1.24 |
 | `database/update-4-online-payments.sql` | online subscription payments through Nylon Pay (server-only table) | 1.24 |
+| `database/update-5-feedback.sql` | feedback & star ratings from the app, read by RHS super admins on the admin Feedback page (server-only table) | 1.25 |
+| `database/update-6-standard-8-devices.sql` | Standard plan (and free trial) goes from 5 to 8 devices for existing facilities. Run it right **after** uploading the 1.25 files | 1.25 |
+| `database/update-7-privacy.sql` | who agreed to the Privacy Policy & Terms, and facilities' data deletion requests (server-only table). Run **before** the files | 1.25 |
 
 phpMyAdmin → click the database → **SQL** → paste the file → **Go**. "Duplicate column name" means it was already run — fine.
+Each file says at its top whether it goes **before** or **after** the files; see [MAINTENANCE.md → Database updates](../MAINTENANCE.md#6-database-updates).
 
 After uploading app 1.24, tell facilities: **everyone logs in once more** (the app now records who makes each
 sensitive change), and **other admins start with nothing ticked**: the super admin (who registered the facility)
@@ -244,7 +255,5 @@ Each pharmacy can still download its own backup file from **System → Backup** 
 
 ## Not covered by this setup
 
-- **Mobile Money payments** used Netlify functions (`netlify/` folder). These don't run on cPanel, so
-  the in-app MoMo payment won't work from this hosting. A new payment method is planned.
 - **Registration emails** still use the Google Apps Script service set up earlier (`config.js` →
   `REGISTRATION_EMAIL_URL`).

@@ -8,7 +8,7 @@
 // The API (api/...) is never cached - the sync talks to the server directly.
 //
 // When you add, rename or remove a file: update PRECACHE below AND bump CACHE_NAME.
-const CACHE_NAME = 'rhb-cache-v24';
+const CACHE_NAME = 'rhb-cache-v27';
 const FONT_CACHE = 'rhb-fonts-v1';
 const NETWORK_TIMEOUT_MS = 4000;
 const SLOW_MODE_MS = 60 * 1000;
@@ -56,6 +56,10 @@ const PRECACHE = [
   './js/services/google-drive.js',
   './js/services/backup.js',
   './js/services/sync.js',
+  './js/services/privacy.js',
+  './privacy.html',
+  './terms.html',
+  './css/legal.css',
   './js/services/public-info.js',
   './js/services/registration.js',
   './js/services/license.js',
@@ -157,6 +161,8 @@ self.addEventListener('fetch', (e) => {
   const rel = url.pathname.slice(scopePath.length);
   if (rel.startsWith('api/') || url.pathname.startsWith('/.netlify/')) return; // server calls: never cached
 
-  const isPage = req.mode === 'navigate';
+  // Opening the app itself (any address that is not its own .html page) gets the app's index.html.
+  // Other pages (privacy.html, terms.html) are normal files, cached under their own name.
+  const isPage = req.mode === 'navigate' && !(rel.endsWith('.html') && rel !== 'index.html');
   e.respondWith(appFile(req, isPage));
 });

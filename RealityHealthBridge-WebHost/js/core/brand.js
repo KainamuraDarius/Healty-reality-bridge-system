@@ -11,7 +11,7 @@ const RHB_LOGO = 'assets/img/logo.png';
 
 // App version, shown to RHS in the admin site (Support page). Raise it with every upload,
 // together with CACHE_NAME in service-worker.js.
-const RHB_APP_VERSION = '1.24';
+const RHB_APP_VERSION = '1.25';
 
 // ---------- REALITY HEALTH SYSTEM contact & payment ----------
 const RHS_PHONE = '0789511736';

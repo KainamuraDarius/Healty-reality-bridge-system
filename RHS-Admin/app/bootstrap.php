@@ -2,6 +2,9 @@
 // Loaded at the top of every page: settings, database, secure session, helpers, login checks.
 if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === basename(__FILE__)) { http_response_code(403); exit; }
 
+// Errors go to the server's error log, never onto the page (they can show file paths and SQL).
+ini_set('display_errors', '0'); ini_set('log_errors', '1');
+
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/layout.php';
@@ -9,6 +12,7 @@ require_once __DIR__ . '/licence.php';
 require_once __DIR__ . '/support_actions.php';
 require_once __DIR__ . '/messaging.php';
 require_once __DIR__ . '/facility_files.php';
+require_once __DIR__ . '/privacy_tools.php';
 
 function config(): array {
     static $cfg = null;

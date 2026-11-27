@@ -9,6 +9,7 @@ RHS-Admin/app/config.php
 *.png
 !RealityHealthBridge-WebHost/icons/*.png
 !RealityHealthBridge-WebHost/assets/**/*.png
+!RHS-Admin/assets/*.png
 *.jpeg
 *.jpg
 !RealityHealthBridge-WebHost/assets/**/*.jpg

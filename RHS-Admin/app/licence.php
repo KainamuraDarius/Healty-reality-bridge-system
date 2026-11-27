@@ -7,7 +7,7 @@ if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === basename(__FILE__)) { http_r
 // Same packages and prices as the app (js/services/license.js).
 const PACKAGES = [
     'starter'  => ['label' => 'Starter',  'devices' => 2, 'setup_fee' => 150000],
-    'standard' => ['label' => 'Standard', 'devices' => 5, 'setup_fee' => 300000],
+    'standard' => ['label' => 'Standard', 'devices' => 8, 'setup_fee' => 300000],
 ];
 const MONTHLY_FEE = 20000;
 
@@ -89,7 +89,7 @@ const MONTH_DAYS = ['1' => 30, '3' => 90, '6' => 180, '12' => 365];
 // facility can still pick a package later. Adds $days from the current end date if the trial is
 // still running, else from today; or sets an exact $until date. Returns the new end date.
 const TRIAL_EXTEND_DAYS = [7, 14, 30, 60, 90];
-const TRIAL_DAYS_DEFAULT = 7;   // the app's own trial length (js/services/license.js TRIAL_DAYS)
+const TRIAL_DAYS_DEFAULT = 14;  // the app's own trial length (js/services/license.js TRIAL_DAYS)
 function extend_trial(array $f, ?int $days, ?string $until, string $note = ''): string {
     $today = today_local();
     if (!$until) {

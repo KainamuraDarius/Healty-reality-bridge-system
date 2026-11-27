@@ -6,7 +6,7 @@
 //
 // Request:  { facility: {id, name, email, ..., updated_at},
 //             user: {id, username, pw_salt, pw_verifier, role:'owner', ..., login_key},
-//             device_id, device_label }
+//             device_id, device_label, terms_version }   (terms_version: the privacy policy + terms they agreed to)
 // Response: { ok, token, facility_id, user: {id, username, role}, device: {id, code, label} }
 require_once __DIR__ . '/lib.php';
 
@@ -67,6 +67,12 @@ if (!empty($facRow['license_expiry'])) {
     $facRow['license_source'] = device_licence_source(null, $facRow) ?? 'legacy';
     if (empty($facRow['license_updated_at'])) $facRow['license_updated_at'] = $facRow['updated_at'];
     if ($facRow['license_source'] === 'trial') apply_trial_length($facRow);
+}
+// Privacy policy + terms: the person ticked "I agree" when registering (new app versions send it).
+if (privacy_ready() && ($tv = terms_version_from($body['terms_version'] ?? null))) {
+    $facRow['terms_version'] = $tv;
+    $facRow['terms_accepted_at'] = now_ms();
+    $facRow['terms_accepted_by'] = mb_substr(trim((string)($userRow['full_name'] ?: $userRow['username'])), 0, 200);
 }
 insert_row('facilities', $facRow);
 if ($facRow['license_source'] === 'legacy') system_audit('licence.legacy', $facilityId, $facRow['name'], ['expiry' => $facRow['license_expiry'], 'devices' => $facRow['max_devices']]);

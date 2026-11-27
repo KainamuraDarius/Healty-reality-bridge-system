@@ -169,6 +169,7 @@ function viewSell(){
 
         <details class="ticket-customer"${hasCustomer ? ' open' : ''}>
           <summary>${icon('user')}<span>Customer details <em>optional</em></span>${icon('chevronRight')}</summary>
+          <p class="xsmall subtle privacy-hint">${icon('lock')}<span>Only fill in what you need. Patient details stay private to your facility (<a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy Policy</a>).</span></p>
           <div class="form-grid cols-2">
             <div class="field"><label for="buyerName">Customer name</label><input type="text" id="buyerName" placeholder="Walk-in customer" autocomplete="off" value="${esc(saleDraft.buyer)}"></div>
             <div class="field"><label for="buyerContact">Phone</label><input type="tel" id="buyerContact" inputmode="tel" placeholder="07XX XXX XXX" autocomplete="off" value="${esc(saleDraft.buyerContact)}"></div>

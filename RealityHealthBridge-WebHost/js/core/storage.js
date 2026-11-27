@@ -50,7 +50,7 @@ const facilitySig = st => JSON.stringify({ identity:st.identity || null, trialUs
   license:st.license ? Object.assign({}, st.license, { devices:undefined }) : null });
 
 // Settings that belong to the facility (synced). Everything else in STATE.settings stays on this device.
-const FACILITY_SETTING_KEYS = ['identity','license','trialUsed','suspended'];
+const FACILITY_SETTING_KEYS = ['identity','license','trialUsed','suspended','terms'];
 
 const num = v => { const n = Number(v); return isFinite(n) ? n : 0; };
 const str = v => (v===null || v===undefined) ? '' : String(v);
@@ -105,7 +105,9 @@ async function buildState(){
       updatedAt:fac.license_updated_at || null, source:fac.license_source || '', code:fac.license_code || '' } : null,
     trialUsed: !!(fac && fac.trial_used),
     // Set only by REALITY HEALTH SYSTEM in the admin site.
-    suspended: fac && fac.suspended ? { reason:fac.suspended_reason || '' } : null
+    suspended: fac && fac.suspended ? { reason:fac.suspended_reason || '' } : null,
+    // Privacy policy + terms the facility agreed to (set by the server; js/services/privacy.js).
+    terms: fac && fac.terms_version ? { version:fac.terms_version, acceptedAt:fac.terms_accepted_at || '', acceptedBy:fac.terms_accepted_by || '' } : null
   });
   if(!STATE.settings.lastBackupDate) STATE.settings.lastBackupDate = null;
 

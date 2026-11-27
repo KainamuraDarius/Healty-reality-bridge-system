@@ -23,7 +23,7 @@ require_once __DIR__ . '/lib.php';
 // Same packages and prices as the app (js/services/license.js) and the admin site (app/licence.php).
 const PAY_PACKAGES = [
     'starter'  => ['label' => 'Starter',  'devices' => 2, 'setup_fee' => 150000],
-    'standard' => ['label' => 'Standard', 'devices' => 5, 'setup_fee' => 300000],
+    'standard' => ['label' => 'Standard', 'devices' => 8, 'setup_fee' => 300000],
 ];
 const PAY_MONTHLY_FEE = 20000;
 const PAY_DAYS = 30;                 // every payment (setup or renewal) gives 30 days
@@ -116,11 +116,6 @@ function pay_price(array $fac, string $kind, string $package): array {
     return [$package, PAY_PACKAGES[$package]['setup_fee'], null];
 }
 
-function uuid_v4(): string {
-    $b = random_bytes(16);
-    $b[6] = chr((ord($b[6]) & 0x0f) | 0x40); $b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
-    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
-}
 function uganda_today(): string { return (new DateTime('now', new DateTimeZone('Africa/Kampala')))->format('Y-m-d'); }
 
 function payment_row(string $id): ?array {

@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS facilities (
   license_updated_at DATETIME(3) NULL,               -- when the licence last changed (kept separate from the profile)
   license_source   VARCHAR(10)  NOT NULL DEFAULT '', -- trial | code | momo | admin | legacy
   license_code     VARCHAR(20)  NOT NULL DEFAULT '', -- activation code a device used, if any
+  terms_version    VARCHAR(20)  NOT NULL DEFAULT '', -- privacy policy + terms version the facility agreed to (server sets it)
+  terms_accepted_at DATETIME(3) NULL,
+  terms_accepted_by VARCHAR(200) NOT NULL DEFAULT '',
   suspended        TINYINT(1)   NOT NULL DEFAULT 0,  -- set ONLY by the RHS admin site
   suspended_reason VARCHAR(300) NOT NULL DEFAULT '',
   created_at       DATETIME(3)  NOT NULL,
@@ -317,4 +320,48 @@ CREATE TABLE IF NOT EXISTS login_attempts (
   ip           VARCHAR(45) NOT NULL,
   attempted_at DATETIME(3) NOT NULL,
   KEY idx_ip_time (ip, attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Server only (never synced to phones). Feedback and star ratings people send from the app
+-- (Settings -> Feedback & rating). Read by RHS super admins on the admin site (feedback.php).
+CREATE TABLE IF NOT EXISTS app_feedback (
+  id           VARCHAR(36)  NOT NULL PRIMARY KEY,
+  facility_id  VARCHAR(36)  NOT NULL,
+  user_id      VARCHAR(36)  NOT NULL DEFAULT '',
+  user_name    VARCHAR(200) NOT NULL DEFAULT '',   -- as it was when they sent it
+  user_role    VARCHAR(20)  NOT NULL DEFAULT '',   -- Super admin | Admin | Staff
+  device_id    VARCHAR(40)  NOT NULL DEFAULT '',
+  rating       TINYINT      NOT NULL,              -- 1 to 5 stars
+  category     VARCHAR(20)  NOT NULL DEFAULT 'general', -- general | idea | problem | praise
+  message      TEXT         NULL,
+  app_version  VARCHAR(20)  NOT NULL DEFAULT '',
+  status       VARCHAR(10)  NOT NULL DEFAULT 'new',     -- new | read
+  reviewed_by  VARCHAR(200) NOT NULL DEFAULT '',   -- the RHS admin who marked it read
+  reviewed_at  DATETIME(3)  NULL,
+  created_at   DATETIME(3)  NOT NULL,
+  KEY idx_time (created_at),
+  KEY idx_status (status, created_at),
+  KEY idx_fac_time (facility_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- Server only (never synced to phones). A facility's super admin asks RHS to delete the
+-- facility's data (app: Settings -> Privacy). RHS handles it on the admin site (privacy.php).
+-- Kept after the facility is erased, as the record that the request was carried out.
+CREATE TABLE IF NOT EXISTS data_requests (
+  id            VARCHAR(36)  NOT NULL PRIMARY KEY,
+  facility_id   VARCHAR(36)  NOT NULL,
+  facility_name VARCHAR(200) NOT NULL DEFAULT '',  -- as it was when they asked
+  user_id       VARCHAR(36)  NOT NULL DEFAULT '',
+  user_name     VARCHAR(200) NOT NULL DEFAULT '',
+  contact       VARCHAR(200) NOT NULL DEFAULT '',  -- phone / email RHS should use to confirm
+  kind          VARCHAR(20)  NOT NULL DEFAULT 'delete',
+  reason        TEXT         NULL,
+  status        VARCHAR(12)  NOT NULL DEFAULT 'open',  -- open | done | cancelled
+  admin_note    VARCHAR(500) NOT NULL DEFAULT '',
+  handled_by    VARCHAR(200) NOT NULL DEFAULT '',
+  handled_at    DATETIME(3)  NULL,
+  created_at    DATETIME(3)  NOT NULL,
+  KEY idx_status (status, created_at),
+  KEY idx_fac (facility_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

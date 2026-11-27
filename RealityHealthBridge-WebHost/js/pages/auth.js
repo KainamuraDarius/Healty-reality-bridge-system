@@ -69,6 +69,10 @@ function renderAuth(){
         ${pwField('Password', 'suPassword', { autocomplete: 'new-password', required: true, hint: 'At least 4 characters.' })}
         ${pwField('Confirm password', 'suPassword2', { autocomplete: 'new-password', required: true })}
       </div>
+      <label class="perm-tick agree-tick">
+        <input type="checkbox" id="rgAgree" required>
+        <span>I have read and agree to the ${policyLinksHtml()} on behalf of this facility. I will make sure our staff tell patients that their details are recorded.</span>
+      </label>
       <button class="btn btn-lg" type="submit">Register facility ${icon('chevronRight')}</button>
     </form>
     ${toLoginLink}
@@ -129,6 +133,7 @@ function renderAuth(){
       if(findAccount(username)){ showError('That username is already taken. Choose a different one.'); return; }
       if(password.length < 4){ showError('Password should be at least 4 characters.'); return; }
       if(password !== password2){ showError('Passwords do not match.'); return; }
+      if(!document.getElementById('rgAgree').checked){ showError('Please read the Privacy Policy and Terms of Use, then tick the box to agree.'); return; }
 
       const submitBtn = e.target.querySelector('[type=submit]');
       submitBtn.classList.add('is-loading');
@@ -145,6 +150,8 @@ function renderAuth(){
       await saveAccounts();
 
       await startSession(account, password); // before the stamp / certificates, so they carry who added them
+      // The "I agree" tick: kept on this device and sent with the facility's registration on the server.
+      STATE.settings.termsPending = { version:TERMS_VERSION, acceptedAt:new Date().toISOString(), acceptedBy:fullName };
       // 2) Facility profile (+ free trial and registration notice for a brand-new facility)
       const recoveryPassword = await saveFacilityIdentity(pharmacy);
       // 3) Stamp and certificates, if chosen (uploaded with everything else when online)

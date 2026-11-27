@@ -7,10 +7,10 @@
 
 const LANDING_FAQ = [
   ['Does it work without internet?', 'Yes. After the first setup, the app runs fully on your phone or computer. Sales and stock you record offline are saved on the device and sent to your other devices when the internet comes back.'],
-  ['Can we use it on more than one phone or computer?', ()=> `Yes. The Starter package covers ${PACKAGES.starter.devices} devices and Standard covers ${PACKAGES.standard.devices}. Log in on a new device with your facility email, and your records download to it.`],
+  ['Can we use it on more than one phone or computer?', ()=> `Yes. The Starter package covers ${PACKAGES.starter.devices} devices and Standard covers ${PACKAGES.standard.devices}, enough for a facility with several branches. Log in on a new device with your facility email, and your records download to it.`],
   ['What happens when the free trial ends?', ()=> `Pick a package from the System page. If you need a few more days, you keep full access for ${GRACE_DAYS} extra days with a reminder before the app locks. Your records are never deleted.`],
   ['How do we pay?', ()=> `Inside the app with MTN Mobile Money or Airtel Money: choose a plan, enter your number and approve with your PIN — the plan switches on straight away on all your devices. You can also pay ${esc(RHS_MOMO_NAME)} (${esc(RHS_PHONE)}) another way and receive an activation code.`],
-  ['Is our data safe?', 'Each facility only ever sees its own records. Passwords are never stored in readable form, records are copied to the server when you are online, and you can download a full backup at any time.'],
+  ['Is our data safe?', ()=> `Each facility only ever sees its own records. Passwords are never stored in readable form, records travel over a secure connection to our server in Uganda, and you can download a full backup at any time. We never sell your data. Read our <a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy Policy</a>.`],
   ['How do staff log in?', `The facility admin creates staff logins from the Team page. Staff then log in with their own username and password, with up to ${MAX_STAFF_ACCOUNTS} staff per facility.`]
 ];
 
@@ -310,6 +310,7 @@ function renderLanding(){
         <div>
           <h4>Get started</h4>
           <a role="button" tabindex="0" data-lp="signup">Register your facility</a><a role="button" tabindex="0" data-lp="login">Log in</a>
+          <a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy Policy</a><a href="${TERMS_URL}" target="_blank" rel="noopener">Terms of Use</a>
         </div>
         <div>
           <h4>Contact</h4>
@@ -317,7 +318,7 @@ function renderLanding(){
         </div>
       </div>
       <div class="lp-container lp-footer-bottom">
-        <span>© ${year} REALITY HEALTH SYSTEM. All rights reserved.</span>
+        <span>© ${year} Reality Health Ltd (REALITY HEALTH SYSTEM). All rights reserved. · <a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a> · <a href="${TERMS_URL}" target="_blank" rel="noopener">Terms</a></span>
         <span>Version ${esc(RHB_APP_VERSION)}</span>
       </div>
     </footer>

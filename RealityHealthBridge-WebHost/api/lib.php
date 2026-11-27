@@ -3,6 +3,9 @@
 // synced tables and how each column is checked. Blocked from the web by .htaccess.
 if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === basename(__FILE__)) { http_response_code(403); exit; }
 
+// Errors go to the server's error log, never onto the page (they can show file paths and SQL).
+ini_set('display_errors', '0'); ini_set('log_errors', '1');
+
 require_once __DIR__ . '/db.php';
 
 const PBKDF2_ITERATIONS = 100000; // must match js/services/api-client.js
@@ -99,7 +102,9 @@ function sync_tables(): array {
             'stamp' => 'text', 'stamp_updated_at' => 'datetime_null',
             // When the super admin last changed the profile (name, contacts, logo); newest wins.
             'profile_updated_at' => 'datetime_null',
-        ], 'read' => ['suspended' => 'bool', 'suspended_reason' => ['str', 300]]],
+        ], 'read' => ['suspended' => 'bool', 'suspended_reason' => ['str', 300],
+                       // Privacy policy + terms the facility agreed to. Set by the server only (register.php, privacy.php).
+                       'terms_version' => ['str', 20], 'terms_accepted_at' => 'datetime_null', 'terms_accepted_by' => ['str', 200]]],
         'users' => ['write' => [
             'username' => ['str', 100], 'pw_salt' => ['str', 64], 'pw_verifier' => ['str', 100],
             'role' => ['enum', ['owner', 'staff']], 'is_primary' => 'bool',
@@ -205,6 +210,11 @@ function to_db_datetime($v): ?string {
     $y = (int)$d->format('Y');
     if ($y < 2000 || $y > 2100) return null;
     return $d->format('Y-m-d H:i:s.v');
+}
+function uuid_v4(): string {
+    $b = random_bytes(16);
+    $b[6] = chr((ord($b[6]) & 0x0f) | 0x40); $b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
 }
 function to_iso($dbValue): ?string {
     if ($dbValue === null) return null;
@@ -453,7 +463,7 @@ function device_json(array $d): array {
 // ---------------------------------------------------------------------
 const LICENCE_COLS = ['license_facility', 'license_expiry', 'license_trial', 'license_tier', 'max_devices', 'trial_used',
                       'license_updated_at', 'license_source', 'license_code'];
-const TRIAL_DAYS_MAX = 8;
+const TRIAL_DAYS_MAX = 15; // the app's 14-day trial + a day for time zones
 
 // Same formula as computeLicenseCode() in the app (js/services/license.js).
 function licence_code_for(string $facility, string $expiryDate, int $maxDevices): string {
@@ -483,15 +493,18 @@ function device_licence_source(?array $old, array $new): ?string {
     return null;
 }
 
-// The app always starts a TRIAL_DAYS_APP-day trial. RHS can choose another length on the admin site
-// (Settings -> Free trial for new pharmacies); a new pharmacy gets that length when it registers.
+// The app starts a TRIAL_DAYS_APP-day trial (older cached copies of the app: 7 days). RHS can choose
+// another length on the admin site (Settings -> Free trial for new facilities). When a facility
+// registers, the server sets its trial to that length counted from today, whatever the app sent.
 // The new licence time is "now", so it beats the device's copy and is sent down on the next sync.
-const TRIAL_DAYS_APP = 7;
+const TRIAL_DAYS_APP = 14;
 function apply_trial_length(array &$facRow): void {
     $days = (int)admin_setting('trial_days', (string)TRIAL_DAYS_APP);
-    if ($days < 1 || $days > 365 || $days === TRIAL_DAYS_APP || empty($facRow['license_expiry'])) return;
-    $start = (new DateTime($facRow['license_expiry']))->modify('-' . TRIAL_DAYS_APP . ' days');
-    $facRow['license_expiry'] = $start->modify('+' . $days . ' days')->format('Y-m-d');
+    if ($days < 1 || $days > 365) $days = TRIAL_DAYS_APP;
+    if (empty($facRow['license_expiry'])) return;
+    $end = (new DateTime('now', new DateTimeZone('UTC')))->modify('+' . $days . ' days')->format('Y-m-d');
+    if ($end === $facRow['license_expiry']) return;
+    $facRow['license_expiry'] = $end;
     $facRow['license_updated_at'] = now_ms();
 }
 
@@ -603,8 +616,38 @@ function alert_recipients(): array {
     return array_values(array_unique(array_filter(array_map('trim', preg_split('/[,;\s]+/', admin_setting('signup_emails'))),
         fn($e) => filter_var($e, FILTER_VALIDATE_EMAIL))));
 }
-function alert_email_after_reply(string $subject, array $lines, string $floodAction): void {
-    register_shutdown_function(function () use ($subject, $lines, $floodAction) {
+// Gmail, Yahoo, Outlook… reject mail that claims to be from them but comes from our server (DMARC),
+// so alerts always go out from our own domain; a free-mail "Send from" becomes the Reply-To.
+const FREE_MAIL_DOMAINS = ['gmail.com', 'googlemail.com', 'yahoo.com', 'ymail.com', 'outlook.com', 'hotmail.com',
+    'live.com', 'msn.com', 'icloud.com', 'me.com', 'aol.com', 'proton.me', 'protonmail.com', 'gmx.com', 'zoho.com'];
+function mail_base_domain(): string {
+    $host = parse_url(admin_setting('admin_url'), PHP_URL_HOST) ?: preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? '');
+    $labels = explode('.', strtolower(preg_replace('/[^A-Za-z0-9.-]/', '', (string)$host)));
+    // bhr-admin.truehome.com.ug -> truehome.com.ug ; app.example.com -> example.com ; truehome.com.ug stays
+    if (count($labels) >= 4 || (count($labels) === 3 && strlen(end($labels)) > 2)) array_shift($labels);
+    return implode('.', $labels);
+}
+function alert_sender(): array {
+    $set = strtolower(trim(admin_setting('mail_from')));
+    $ok = filter_var($set, FILTER_VALIDATE_EMAIL) && !in_array(substr(strrchr($set, '@'), 1), FREE_MAIL_DOMAINS, true);
+    $domain = mail_base_domain();
+    $from = $ok ? $set : ($domain ? 'no-reply@' . $domain : '');
+    $replyTo = (!$ok && filter_var($set, FILTER_VALIDATE_EMAIL)) ? $set : '';
+    return [$from, $replyTo];
+}
+
+function alert_date(?string $ymd): string {
+    $t = $ymd ? strtotime($ymd . ' UTC') : false;
+    return $t ? gmdate('j M Y', $t) : '-';
+}
+function alert_now_local(): string {
+    return (new DateTime('now', new DateTimeZone('Africa/Kampala')))->format('j M Y, H:i') . ' (Kampala time)';
+}
+
+// One alert = a heading, a short sentence, a table of details and an optional button.
+// Sent as text + HTML together: the HTML is what people see, the text keeps spam filters happy.
+function alert_email_after_reply(string $subject, string $heading, string $intro, array $rows, string $button, ?string $link, string $floodAction): void {
+    register_shutdown_function(function () use ($subject, $heading, $intro, $rows, $button, $link, $floodAction) {
         try {
             if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
             $to = alert_recipients();
@@ -613,50 +656,159 @@ function alert_email_after_reply(string $subject, array $lines, string $floodAct
             $s = db()->prepare('SELECT COUNT(*) FROM admin_audit_log WHERE action = ? AND created_at >= (UTC_TIMESTAMP() - INTERVAL 1 HOUR)');
             $s->execute([$floodAction]);
             if ((int)$s->fetchColumn() > 20) return;
-            $from = admin_setting('mail_from');
-            $headers = "Content-Type: text/plain; charset=UTF-8\r\n";
-            if (filter_var($from, FILTER_VALIDATE_EMAIL)) $headers .= "From: Reality Health Bridge <$from>\r\n";
+
+            [$from, $replyTo] = alert_sender();
+            $boundary = 'rhb_' . bin2hex(random_bytes(12));
+            $headers = "MIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"$boundary\"\r\n";
+            if ($from) {
+                $headers .= "From: Reality Health Bridge <$from>\r\n";
+                $headers .= 'Message-ID: <' . bin2hex(random_bytes(16)) . '@' . substr(strrchr($from, '@'), 1) . ">\r\n";
+            }
+            if ($replyTo) $headers .= "Reply-To: $replyTo\r\n";
             $subject = preg_replace('/[\r\n]+/', ' ', $subject);
             if (function_exists('mb_encode_mimeheader')) $subject = mb_encode_mimeheader($subject, 'UTF-8');
-            $extra = filter_var($from, FILTER_VALIDATE_EMAIL) ? '-f' . $from : '';
-            @mail(implode(', ', $to), $subject, implode("\r\n", $lines), $headers, $extra);
+
+            $body = "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n"
+                  . quoted_printable_encode(alert_text($heading, $intro, $rows, $button, $link)) . "\r\n"
+                  . "--$boundary\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n"
+                  . quoted_printable_encode(alert_html($heading, $intro, $rows, $button, $link)) . "\r\n"
+                  . "--$boundary--\r\n";
+            @mail(implode(', ', $to), $subject, $body, $headers, $from ? '-f' . $from : '');
         } catch (Throwable $e) { error_log('RHB email alert: ' . $e->getMessage()); }
     });
 }
+function alert_text(string $heading, string $intro, array $rows, string $button, ?string $link): string {
+    $w = max(array_map('mb_strlen', array_keys($rows)) ?: [0]) + 2;
+    $out = [$heading, str_repeat('=', mb_strlen($heading)), '', $intro, ''];
+    foreach ($rows as $k => $v) $out[] = str_pad($k . ':', $w) . $v;
+    if ($link) array_push($out, '', $button . ': ' . $link);
+    array_push($out, '', '--', 'Reality Health Bridge - automatic alert for the Reality Health System team.', 'Who gets these emails is set in RHS Admin > Settings.');
+    return implode("\r\n", $out);
+}
+function alert_html(string $heading, string $intro, array $rows, string $button, ?string $link): string {
+    $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+    $font = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;";
+    $trs = '';
+    $i = 0;
+    foreach ($rows as $k => $v) {
+        $bg = $i++ % 2 ? '#ffffff' : '#f6f8fb';
+        $trs .= "<tr><td style=\"{$font}padding:10px 14px;background:$bg;color:#5b6573;font-size:14px;width:38%;vertical-align:top;\">{$e($k)}</td>"
+              . "<td style=\"{$font}padding:10px 14px;background:$bg;color:#1b2430;font-size:14px;font-weight:600;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;\">{$e($v)}</td></tr>";
+    }
+    $btn = $link ? "<tr><td style=\"padding:8px 32px 28px;\"><a href=\"{$e($link)}\" style=\"{$font}display:inline-block;background:#1565C0;color:#ffffff;"
+                 . "text-decoration:none;font-size:15px;font-weight:600;padding:12px 22px;border-radius:6px;\">{$e($button)} &rarr;</a></td></tr>" : '';
+    return <<<HTML
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{$e($heading)}</title></head>
+<body style="margin:0;padding:0;background:#eef2f7;">
+<div style="display:none;max-height:0;overflow:hidden;">{$e($intro)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;"><tr><td align="center" style="padding:24px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #dde3ec;">
+    <tr><td style="{$font}background:#1565C0;color:#ffffff;padding:18px 32px;font-size:16px;font-weight:700;letter-spacing:.2px;">Reality Health Bridge</td></tr>
+    <tr><td style="{$font}padding:28px 32px 6px;color:#1b2430;font-size:21px;font-weight:700;">{$e($heading)}</td></tr>
+    <tr><td style="{$font}padding:0 32px 20px;color:#3d4756;font-size:15px;line-height:1.5;">{$e($intro)}</td></tr>
+    <tr><td style="padding:0 32px 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3e8ef;border-radius:6px;border-collapse:separate;overflow:hidden;">$trs</table>
+    </td></tr>
+    $btn
+  </table>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+    <tr><td style="{$font}padding:16px 32px;color:#7a8594;font-size:12px;line-height:1.5;text-align:center;">
+      Automatic alert for the Reality Health System team.<br>Who gets these emails is set in RHS Admin &rsaquo; Settings.
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>
+HTML;
+}
 function alert_clean($s): string { return trim(preg_replace('/[\r\n\t]+/', ' ', (string)$s)); }
-function alert_admin_link(string $facilityId): array {
+function alert_admin_link(string $facilityId): ?string {
     $url = rtrim(admin_setting('admin_url'), '/');
-    return $url ? ['Open it in RHS Admin: ' . $url . '/pharmacy.php?id=' . rawurlencode($facilityId)] : [];
+    return $url ? $url . '/pharmacy.php?id=' . rawurlencode($facilityId) : null;
+}
+function alert_licence(?string $expiry, $trial): string {
+    return $expiry ? (($trial ? 'Free trial until ' : 'Active until ') . alert_date($expiry)) : 'None yet';
 }
 
 // A new pharmacy registered.
 function signup_alert_after_reply(array $fac): void {
     if (admin_setting('alert_signups', '1') !== '1') return;
     $name = alert_clean($fac['name']);
-    alert_email_after_reply('New facility: ' . $name, array_merge([
-        'A new pharmacy has registered on Reality Health Bridge.', '',
-        'Pharmacy:  ' . $name,
-        'Location:  ' . (alert_clean($fac['location']) ?: '-'),
-        'Phone:     ' . (alert_clean($fac['contact']) ?: '-'),
-        'Email:     ' . alert_clean($fac['email']),
-        'Licence:   ' . (!empty($fac['license_expiry']) ? (($fac['license_trial'] ? 'free trial until ' : 'until ') . $fac['license_expiry']) : 'none yet'),
-        'Time (UTC): ' . gmdate('Y-m-d H:i'), '',
-    ], alert_admin_link($fac['id'])), 'pharmacy.registered');
+    alert_email_after_reply('New facility registered: ' . $name, 'New facility registered',
+        "$name has just signed up on Reality Health Bridge.", [
+            'Facility'   => $name,
+            'Location'   => alert_clean($fac['location']) ?: '-',
+            'Phone'      => alert_clean($fac['contact']) ?: '-',
+            'Email'      => alert_clean($fac['email']) ?: '-',
+            'Licence'    => alert_licence($fac['license_expiry'] ?? null, !empty($fac['license_trial'])),
+            'Registered' => alert_now_local(),
+        ], 'Open in RHS Admin', alert_admin_link($fac['id']), 'pharmacy.registered');
 }
 
 // A pharmacy activated or renewed a package from the app (activation code or Mobile Money).
 function activation_alert_after_reply(array $old, array $new): void {
     if (admin_setting('alert_activations', '1') !== '1') return;
     $name = alert_clean($old['name']);
-    $how = $new['license_source'] === 'nylonpay' ? 'Mobile Money through Nylon Pay (confirmed by Nylon Pay)'
-         : ($new['license_source'] === 'momo' ? 'Mobile Money (please check the payment arrived)' : 'activation code');
-    alert_email_after_reply('Subscription: ' . $name, array_merge([
-        'A pharmacy has activated a subscription on Reality Health Bridge.', '',
-        'Pharmacy:  ' . $name,
-        'Package:   ' . (alert_clean($new['license_tier']) ?: '-') . ' (' . (int)$new['max_devices'] . ' devices)',
-        'Valid to:  ' . $new['license_expiry'],
-        'Paid by:   ' . $how,
-        'Before:    ' . ($old['license_expiry'] ? (($old['license_trial'] ? 'free trial until ' : 'until ') . $old['license_expiry']) : 'no licence'),
-        'Time (UTC): ' . gmdate('Y-m-d H:i'), '',
-    ], alert_admin_link($old['id'])), 'licence.' . $new['license_source']);
+    $how = $new['license_source'] === 'nylonpay' ? 'Mobile Money via Nylon Pay (confirmed)'
+         : ($new['license_source'] === 'momo' ? 'Mobile Money (please check the payment arrived)' : 'Activation code');
+    alert_email_after_reply('Subscription: ' . $name, 'Subscription activated',
+        "$name has activated a subscription on Reality Health Bridge.", [
+            'Facility'  => $name,
+            'Package'   => (alert_clean($new['license_tier']) ?: '-') . ' (' . (int)$new['max_devices'] . ' devices)',
+            'Valid to'  => alert_date($new['license_expiry']),
+            'Paid by'   => $how,
+            'Before'    => alert_licence($old['license_expiry'] ?? null, !empty($old['license_trial'])),
+            'Activated' => alert_now_local(),
+        ], 'Open in RHS Admin', alert_admin_link($old['id']), 'licence.' . $new['license_source']);
+}
+
+// ---------------------------------------------------------------------
+// Privacy policy and terms (privacy.html, terms.html). When they change in a way people must
+// agree to again, change this date AND TERMS_VERSION in js/core/brand.js.
+const TERMS_VERSION = '2026-11-27';
+
+// True once database update 7 was run (so nothing breaks if the files go up first).
+function privacy_ready(): bool {
+    static $ok = null;
+    if ($ok === null) {
+        try { db()->query('SELECT terms_version FROM facilities LIMIT 0'); db()->query('SELECT 1 FROM data_requests LIMIT 0'); $ok = true; }
+        catch (Throwable $e) { $ok = false; }
+    }
+    return $ok;
+}
+// The terms version a device says the person agreed to, if it is the current one.
+function terms_version_from($v): ?string {
+    return is_string($v) && $v === TERMS_VERSION ? $v : null;
+}
+
+// A facility asked RHS to delete its data (app: Settings -> Privacy).
+function data_request_alert_after_reply(array $fac, array $req): void {
+    $name = alert_clean($fac['name']) ?: 'A facility';
+    $url = rtrim(admin_setting('admin_url'), '/');
+    alert_email_after_reply('Data deletion request: ' . $name, 'Data deletion request',
+        "The super admin of $name has asked RHS to delete the facility's data. Please confirm with them, then act within 30 days.", [
+            'Facility'  => $name,
+            'Asked by'  => alert_clean($req['user_name']) ?: '-',
+            'Contact'   => alert_clean($req['contact']) ?: '-',
+            'Reason'    => alert_clean($req['reason'] ?? '') ?: '(none given)',
+            'Asked on'  => alert_now_local(),
+        ], 'Open privacy requests', $url ? $url . '/privacy.php' : null, 'privacy.delete_requested');
+}
+
+// Someone sent feedback / a rating from the app (Settings -> Feedback & rating).
+function feedback_alert_after_reply(array $fac, array $fb): void {
+    if (admin_setting('alert_feedback', '1') !== '1') return;
+    $name = alert_clean($fac['name']) ?: 'A facility';
+    $stars = str_repeat('★', (int)$fb['rating']) . str_repeat('☆', 5 - (int)$fb['rating']);
+    $kind = ['general' => 'General', 'idea' => 'Suggestion / idea', 'problem' => 'Problem', 'praise' => 'Praise'][$fb['category']] ?? 'General';
+    $url = rtrim(admin_setting('admin_url'), '/');
+    alert_email_after_reply('Feedback ' . $fb['rating'] . '/5 from ' . $name, 'New feedback: ' . $fb['rating'] . ' out of 5',
+        "Someone at $name sent feedback from the app.", [
+            'Rating'   => $stars . '  (' . $fb['rating'] . '/5)',
+            'Type'     => $kind,
+            'Message'  => alert_clean($fb['message'] ?? '') ?: '(no message)',
+            'From'     => (alert_clean($fb['user_name']) ?: '-') . ' (' . $fb['user_role'] . ')',
+            'Facility' => $name,
+            'Sent'     => alert_now_local(),
+        ], 'See all feedback', $url ? $url . '/feedback.php' : null, 'feedback.received');
 }
